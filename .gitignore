@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# Generated data
+# steps_data.json - removed to allow GitHub Pages to serve the data
+
+# Claude AI files
+.claude/
+
+# Playwright MCP files
+.playwright-mcp/

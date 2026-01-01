@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Step Tracker</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/utc.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/timezone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
+    <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/plugins/CalendarLabel.min.js"></script>
+    <script src="./config.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; text-align: center; }
+        .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; }
+        .stat { font-size: 24px; font-weight: bold; }
+        .label { font-size: 12px; color: #8b949e; }
+        #cal-heatmap { margin: 20px 0; }
+
+        /* Custom tooltip (more reliable than SVG <title> tooltips across browsers) */
+        #step-tooltip {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+            max-width: 260px;
+            padding: 8px 10px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #161b22;
+            color: #c9d1d9;
+            font-size: 12px;
+            line-height: 1.3;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+              
+        <div class="stats">
+            <div>
+                <div class="stat" id="total-steps">-</div>
+                <div class="label">Total Steps</div>
+            </div>
+            <div>
+                <div class="stat" id="current-streak">-</div>
+                <div class="label">10k+ Streak</div>
+            </div>
+        </div>
+
+        <div id="cal-heatmap"></div>
+    </div>
+
+    <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script>
+        dayjs.extend(dayjs_plugin_utc);
+        dayjs.extend(dayjs_plugin_timezone);
+
+        const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        const cal = new CalHeatmap();
+        
+        fetch('./steps_data.json').then(r => r.json()).then(data => {
+            // Convert data to array format expected by cal-heatmap
+            const chartData = [];
+            Object.keys(data).forEach(dateStr => {
+                chartData.push({
+                    date: dateStr,
+                    value: data[dateStr]
+                });
+            });
+            
+            let total = 0, streak = 0, active = true;
+            let today = new Date(); today.setHours(0,0,0,0);
+            
+            Object.keys(data).sort().reverse().forEach(dateStr => {
+                let steps = data[dateStr];
+                total += steps;
+                
+                let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
+                if (active && date <= today) {
+                    if (steps >= 10000) streak++;
+                    else if (date.getTime() !== today.getTime()) active = false;
+                }
+            });
+
+            document.getElementById("total-steps").innerText = fmt(total);
+            document.getElementById("current-streak").innerText = streak;
+
+            cal.paint(
+                {
+                    data: {
+                        source: chartData,
+                        x: 'date',
+                        y: 'value',
+                    },
+                    date: { start: new Date('2026-01-01') },
+                    range: 12,
+                    scale: {
+                        color: {
+                            type: 'threshold',
+                            range: ['#14432a', '#166b34', '#37a446', '#4dd05a'],
+                            domain: [3000, 6000, 10000],
+                        },
+                    },
+                    domain: {
+                        type: 'month',
+                        gutter: 4,
+                        label: { text: 'MMM', textAlign: 'start', position: 'top' },
+                    },
+                    subDomain: { type: 'ghDay', radius: 2, width: 11, height: 11, gutter: 4, empty: '#000000' },
+                    itemSelector: '#cal-heatmap',
+                },
+                [
+                    [
+                        CalendarLabel,
+                        {
+                            width: 30,
+                            textAlign: 'start',
+                            text: () => ['', 'Mon', '', 'Wed', '', 'Fri', ''],
+                            padding: [25, 0, 0, 0],
+                        },
+                    ],
+                ]
+            );
+
+            cal.on('click', function(event, timestamp, value) {
+                console.log('Clicked:', timestamp, value);
+            });
+
+            // Wait for calendar to render and add blackout styling + a reliable custom tooltip
+            setTimeout(() => {
+                const tooltipEl = document.getElementById('step-tooltip');
+
+                const yearStart = new Date(2026, 0, 1);
+                const yearEnd = new Date(2026, 11, 31);
+
+                const formatDate = (d) => d.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+
+                const updateTooltipPosition = (evt) => {
+                    const offset = 12;
+                    tooltipEl.style.left = `${evt.clientX + offset}px`;
+                    tooltipEl.style.top = `${evt.clientY + offset}px`;
+                };
+
+                const showTooltip = (text, evt) => {
+                    tooltipEl.textContent = text;
+                    tooltipEl.style.display = 'block';
+                    tooltipEl.setAttribute('aria-hidden', 'false');
+                    updateTooltipPosition(evt);
+                };
+
+                const hideTooltip = () => {
+                    tooltipEl.style.display = 'none';
+                    tooltipEl.setAttribute('aria-hidden', 'true');
+                };
+
+                const cells = document.querySelectorAll('#cal-heatmap rect.ch-subdomain-bg');
+                console.log('Found subdomain cells:', cells.length);
+
+                // Pre-index data for O(1) lookup
+                const stepsByDate = new Map(chartData.map(d => [d.date, d.value]));
+
+                cells.forEach((cell) => {
+                    // Cal-Heatmap binds a datum per cell (D3). Use that timestamp for correct date mapping.
+                    const d = (typeof d3 !== 'undefined') ? d3.select(cell).datum() : null;
+                    const cellDate = d?.t ? new Date(d.t) : null;
+                    if (!cellDate) return;
+                    cellDate.setHours(0,0,0,0);
+
+                    // Use local date (CONFIG.TIMEZONE) for matching steps_data.json keys.
+                    const dateStr = dayjs(cellDate)
+                        .tz(window.CONFIG?.TIMEZONE || dayjs.tz.guess())
+                        .format('YYYY-MM-DD');
+                    const isBeforeYear = cellDate < yearStart;
+                    const isAfterYear = cellDate > yearEnd;
+
+                    if (isBeforeYear || isAfterYear) {
+                        cell.style.fill = '#000000';
+                        cell.style.opacity = '0.3';
+                        // Keep a title as a fallback, but rely on custom tooltip for consistency
+                        cell.setAttribute('title', 'Outside year range');
+                        cell.style.pointerEvents = 'none';
+                        return;
+                    }
+
+                    const steps = stepsByDate.get(dateStr) ?? 0;
+                    const tooltipText = `${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
+
+                    // Fallback title (some environments still show this)
+                    cell.setAttribute('title', tooltipText);
+
+                    // Custom tooltip handlers
+                    cell.addEventListener('mouseenter', (evt) => showTooltip(tooltipText, evt));
+                    cell.addEventListener('mousemove', updateTooltipPosition);
+                    cell.addEventListener('mouseleave', hideTooltip);
+                });
+
+                // If you leave the SVG entirely, hide tooltip
+                const svg = document.querySelector('#cal-heatmap svg');
+                if (svg) svg.addEventListener('mouseleave', hideTooltip);
+            }, 500);
+        });
+    </script>
+</body>
+</html>
