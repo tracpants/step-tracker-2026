@@ -34,22 +34,53 @@ def main():
             with open(json_path, "r") as f:
                 existing_data = json.load(f)
         
+        # Check last run date to avoid redundant API calls
+        last_run_file = os.path.join(repo_path, ".last_run")
+        last_run_date = None
+        if os.path.exists(last_run_file):
+            with open(last_run_file, "r") as f:
+                last_run_str = f.read().strip()
+                if last_run_str:
+                    last_run_date = datetime.date.fromisoformat(last_run_str)
+        
+        logging.info(f"Date range analysis: {start_date} to {today}")
+        logging.info(f"Existing data contains {len(existing_data)} dates")
+        
+        # Find dates that need to be checked
+        dates_to_check = []
+        yesterday = today - datetime.timedelta(days=1)
+        
         # Find missing dates between start_date and today
-        missing_dates = []
         current_date = start_date
         while current_date <= today:
             if current_date.isoformat() not in existing_data:
-                missing_dates.append(current_date)
+                dates_to_check.append((current_date, "missing data"))
             current_date += datetime.timedelta(days=1)
         
         # Always include today to ensure current data is correct
-        if today >= start_date and today not in missing_dates:
-            missing_dates.append(today)
+        if today >= start_date:
+            today_reason = "ensure current data"
+            if today not in [d[0] for d in dates_to_check]:
+                existing_steps = existing_data.get(today.isoformat(), 0)
+                today_reason = f"ensure current data"
+                dates_to_check.append((today, today_reason))
             
-        # Always include yesterday (if it's in 2026) to catch any updates
-        yesterday = today - datetime.timedelta(days=1)
-        if yesterday >= start_date and yesterday not in missing_dates:
-            missing_dates.append(yesterday)
+        # Include yesterday only if we haven't run today yet
+        if yesterday >= start_date:
+            if last_run_date != today and yesterday not in [d[0] for d in dates_to_check]:
+                existing_steps = existing_data.get(yesterday.isoformat(), 0)
+                yesterday_reason = "catch updates"
+                dates_to_check.append((yesterday, yesterday_reason))
+            elif last_run_date == today:
+                logging.info(f"Skipping yesterday ({yesterday}) - already checked today")
+        
+        if dates_to_check:
+            logging.info(f"Found {len(dates_to_check)} dates to check:")
+            for date, reason in dates_to_check:
+                existing_steps = existing_data.get(date.isoformat(), 0)
+                logging.info(f"  - {date}: existing steps={existing_steps}, reason={reason}")
+        
+        missing_dates = [d[0] for d in dates_to_check]
         
         if not missing_dates:
             logging.info("No missing dates to fetch.")
@@ -59,28 +90,54 @@ def main():
         missing_dates.sort()
         fetch_start = missing_dates[0].isoformat()
         fetch_end = missing_dates[-1].isoformat()
-        logging.info(f"Fetching stats for {len(missing_dates)} missing dates from {fetch_start} to {fetch_end}...")
+        logging.info(f"Fetching stats for {len(missing_dates)} dates from {fetch_start} to {fetch_end}...")
         
         stats = garmin.get_daily_steps(fetch_start, fetch_end)
-
-        # Update existing data with new stats
-        data_points = existing_data.copy()
-        updated_count = 0
+        logging.info(f"Garmin returned {len(stats)} entries for date range {fetch_start} to {fetch_end}")
+        
+        # Log the Garmin data for transparency
         for entry in stats:
             date_str = entry['calendarDate']
             steps = entry['totalSteps']
-            if date_str not in data_points or data_points[date_str] != steps:
+            logging.info(f"  Garmin data: {date_str} = {steps} steps")
+
+        # Update existing data with new stats
+        data_points = existing_data.copy()
+        new_count = 0
+        updated_count = 0
+        unchanged_count = 0
+        
+        for entry in stats:
+            date_str = entry['calendarDate']
+            steps = entry['totalSteps']
+            
+            if date_str not in data_points:
+                # New date
+                data_points[date_str] = steps
+                new_count += 1
+                logging.info(f"  NEW: {date_str} = {steps} steps")
+            elif data_points[date_str] != steps:
+                # Updated date
+                old_steps = data_points[date_str]
+                change = steps - old_steps
                 data_points[date_str] = steps
                 updated_count += 1
+                logging.info(f"  UPDATED: {date_str} = {steps} steps (was {old_steps}, change: {change:+d})")
+            else:
+                # Unchanged date
+                unchanged_count += 1
+                logging.info(f"  UNCHANGED: {date_str} = {steps} steps (matches local data)")
 
-        if updated_count == 0:
+        total_changes = new_count + updated_count
+        logging.info(f"Comparison summary: {new_count} new, {updated_count} updated, {unchanged_count} unchanged")
+
+        if total_changes == 0:
             logging.info("No new step data to update.")
-            # Still check config.js in case timezone changed
             steps_updated = False
         else:
             with open(json_path, "w") as f:
                 json.dump(data_points, f, sort_keys=True)
-            logging.info(f"Database updated. {updated_count} days updated. Total days tracked: {len(data_points)}")
+            logging.info(f"Database updated. {total_changes} days updated. Total days tracked: {len(data_points)}")
             steps_updated = True
 
         # Generate config.js with timezone setting only if changed
@@ -138,6 +195,10 @@ def main():
                     raise
         else:
             logging.info("No changes to commit.")
+        
+        # Update last run date to avoid redundant API calls on subsequent runs
+        with open(last_run_file, "w") as f:
+            f.write(today.isoformat())
 
     except Exception as e:
         logging.error(f"Error: {e}")
