@@ -28,16 +28,15 @@
             z-index: 9999;
             pointer-events: none;
             display: none;
-            max-width: 260px;
+            max-width: 300px;
             padding: 8px 10px;
             border: 1px solid #30363d;
             border-radius: 6px;
             background: #161b22;
             color: #c9d1d9;
             font-size: 12px;
-            line-height: 1.3;
+            line-height: 1.5;
             box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-            white-space: nowrap;
         }
     </style>
 </head>
@@ -210,10 +209,10 @@
                     const isMaxDay = dateStr === maxStepDate;
                     const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
 
-                    // Highlight max step day with gold border
+                    // Highlight max step day with gold border (using box-shadow to avoid clipping)
                     if (isMaxDay) {
-                        cell.style.stroke = '#ffd700';
-                        cell.style.strokeWidth = '2px';
+                        cell.style.boxShadow = '0 0 0 2px #ffd700';
+                        cell.style.borderRadius = '2px';
                     }
 
                     // Fallback title (some environments still show this)
