@@ -3,6 +3,7 @@ import json
 import datetime
 import logging
 import subprocess
+from zoneinfo import ZoneInfo
 from garminconnect import Garmin
 from dotenv import load_dotenv
 from git import Repo
@@ -63,6 +64,7 @@ def main():
     load_dotenv()
     email = os.getenv("GARMIN_EMAIL")
     password = os.getenv("GARMIN_PASSWORD")
+    timezone_str = os.getenv("TIMEZONE", "Australia/Sydney")
     repo_path = os.getcwd()
 
     if not email or not password:
@@ -72,12 +74,17 @@ def main():
     try:
         # Ensure clean git state before starting
         ensure_clean_git_state(repo_path)
-        
+
         logging.info("Authenticating with Garmin...")
         garmin = Garmin(email, password)
         garmin.login()
 
-        today = datetime.date.today()
+        # Get today's date in the configured timezone
+        tz = ZoneInfo(timezone_str)
+        now_in_tz = datetime.datetime.now(tz)
+        today = now_in_tz.date()
+        logging.info(f"Current date in {timezone_str}: {today} (UTC would be: {datetime.date.today()})")
+
         start_date = datetime.date(2026, 1, 1)
         json_path = os.path.join(repo_path, "steps_data.json")
         
@@ -194,25 +201,24 @@ def main():
             steps_updated = True
 
         # Generate config.js with timezone setting only if changed
-        timezone = os.getenv("TIMEZONE", "Australia/Sydney")
         config_path = os.path.join(repo_path, "config.js")
         config_changed = False
         
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
                 current_config = f.read()
-                expected_config = f"window.CONFIG = {{\n    TIMEZONE: '{timezone}'\n}};\n"
+                expected_config = f"window.CONFIG = {{\n    TIMEZONE: '{timezone_str}'\n}};\n"
                 if current_config != expected_config:
                     config_changed = True
         else:
             config_changed = True
-            
+
         if config_changed:
             with open(config_path, "w") as f:
                 f.write(f"window.CONFIG = {{\n")
-                f.write(f"    TIMEZONE: '{timezone}'\n")
+                f.write(f"    TIMEZONE: '{timezone_str}'\n")
                 f.write(f"}};\n")
-            logging.info(f"Config file updated with timezone: {timezone}")
+            logging.info(f"Config file updated with timezone: {timezone_str}")
 
         # Only commit and push if we have actual changes
         repo = Repo(repo_path)
