@@ -178,41 +178,27 @@ def main():
             repo.index.add(files_to_add)
             repo.index.commit(f"Update steps: {today}")
             
-            # Use GitHub CLI for reliable pushing
+            # Push changes with rebase fallback for diverging histories
             try:
-                subprocess.run(['gh', 'repo', 'sync'], 
+                subprocess.run(['git', 'push'], 
                              capture_output=True, text=True, check=True)
-                logging.info("Push successful via GitHub CLI sync.")
+                logging.info("Push successful.")
             except subprocess.CalledProcessError as e:
-                logging.warning(f"GitHub CLI sync failed: {e.stderr}")
+                logging.warning(f"Push failed: {e.stderr}")
                 # Handle diverging changes with rebase and retry
-                if "diverging changes" in e.stderr:
+                if "rejected" in e.stderr or "non-fast-forward" in e.stderr:
                     try:
-                        # Try to rebase and retry sync
+                        logging.info("Attempting rebase and retry...")
                         subprocess.run(['git', 'pull', '--rebase', 'origin', 'master'], 
                                      capture_output=True, text=True, check=True)
-                        subprocess.run(['gh', 'repo', 'sync'], 
-                                     capture_output=True, text=True, check=True)
-                        logging.info("Push successful via GitHub CLI sync after rebase.")
-                    except subprocess.CalledProcessError as rebase_error:
-                        logging.error(f"Rebase and retry failed: {rebase_error.stderr}")
-                        # Final fallback to git push
-                        try:
-                            subprocess.run(['git', 'push'], 
-                                         capture_output=True, text=True, check=True)
-                            logging.info("Push successful via git push.")
-                        except subprocess.CalledProcessError as git_error:
-                            logging.error(f"Git push also failed: {git_error.stderr}")
-                            raise
-                else:
-                    # For other GitHub CLI errors, fallback to git push
-                    try:
                         subprocess.run(['git', 'push'], 
                                      capture_output=True, text=True, check=True)
-                        logging.info("Push successful via git push.")
-                    except subprocess.CalledProcessError as git_error:
-                        logging.error(f"Git push also failed: {git_error.stderr}")
+                        logging.info("Push successful after rebase.")
+                    except subprocess.CalledProcessError as rebase_error:
+                        logging.error(f"Rebase and push failed: {rebase_error.stderr}")
                         raise
+                else:
+                    raise
         else:
             logging.info("No changes to commit.")
         
