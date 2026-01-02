@@ -22,6 +22,27 @@
         .label { font-size: 12px; color: #8b949e; }
         #cal-heatmap { margin: 20px 0; }
 
+        /* Add breathing room so SVG strokes (e.g., max-day outline) don't get clipped at edges */
+        #cal-heatmap svg {
+            overflow: visible;
+        }
+        /* Cal-Heatmap positions content tightly; this wrapper padding helps first/last column strokes */
+        #cal-heatmap {
+            padding: 3px;
+            margin: 17px auto; /* keep roughly the same visual spacing as 20px */
+            display: inline-block;
+        }
+
+        /* SVG-friendly highlight for the max-step day (box-shadow doesn't apply to SVG rects) */
+        #cal-heatmap rect.is-max-day {
+            stroke: #ffd700;
+            stroke-width: 2px;
+            /* ensure stroke is drawn clearly on top of the fill */
+            paint-order: stroke;
+            /* keep stroke sizing stable */
+            vector-effect: non-scaling-stroke;
+        }
+
         /* Custom tooltip (more reliable than SVG <title> tooltips across browsers) */
         #step-tooltip {
             position: fixed;
@@ -209,10 +230,14 @@
                     const isMaxDay = dateStr === maxStepDate;
                     const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
 
-                    // Highlight max step day with gold border (using box-shadow to avoid clipping)
+                    // Highlight max step day with a gold outline (SVG-friendly)
                     if (isMaxDay) {
-                        cell.style.boxShadow = '0 0 0 2px #ffd700';
-                        cell.style.borderRadius = '2px';
+                        cell.classList.add('is-max-day');
+                        // Set explicitly too (helps if styles get overridden by library updates)
+                        cell.setAttribute('stroke', '#ffd700');
+                        cell.setAttribute('stroke-width', '2');
+                        cell.setAttribute('paint-order', 'stroke');
+                        // Avoid glow/shadows here because SVG may clip filters at the cell bounds
                     }
 
                     // Fallback title (some environments still show this)
