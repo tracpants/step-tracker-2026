@@ -76,7 +76,17 @@
                     value: data[dateStr]
                 });
             });
-            
+
+            // Find the day with max steps for highlighting
+            let maxSteps = 0;
+            let maxStepDate = null;
+            chartData.forEach(item => {
+                if (item.value > maxSteps) {
+                    maxSteps = item.value;
+                    maxStepDate = item.date;
+                }
+            });
+
             let total = 0, streak = 0, active = true;
             let today = new Date(); today.setHours(0,0,0,0);
             
@@ -197,7 +207,14 @@
                     }
 
                     const steps = stepsByDate.get(dateStr) ?? 0;
-                    const tooltipText = `${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
+                    const isMaxDay = dateStr === maxStepDate;
+                    const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
+
+                    // Highlight max step day with gold border
+                    if (isMaxDay) {
+                        cell.style.stroke = '#ffd700';
+                        cell.style.strokeWidth = '2px';
+                    }
 
                     // Fallback title (some environments still show this)
                     cell.setAttribute('title', tooltipText);
