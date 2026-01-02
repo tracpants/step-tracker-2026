@@ -9,6 +9,56 @@ from git import Repo
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def ensure_clean_git_state(repo_path):
+    """Ensure we're on master branch with a clean state before starting"""
+    repo = Repo(repo_path)
+    
+    # Check if we're in detached HEAD state
+    if repo.head.is_detached:
+        logging.warning("Detached HEAD detected - cleaning up...")
+        # Abort any in-progress operations
+        subprocess.run(['git', 'rebase', '--abort'], capture_output=True, cwd=repo_path)
+        subprocess.run(['git', 'cherry-pick', '--abort'], capture_output=True, cwd=repo_path)
+        subprocess.run(['git', 'merge', '--abort'], capture_output=True, cwd=repo_path)
+        # Checkout master
+        subprocess.run(['git', 'checkout', 'master'], check=True, cwd=repo_path)
+        logging.info("Checked out master branch")
+    
+    # Check if we have any uncommitted changes
+    status_result = subprocess.run(['git', 'status', '--porcelain'], 
+                                 capture_output=True, text=True, cwd=repo_path)
+    if status_result.stdout.strip():
+        logging.info("Uncommitted changes detected - stashing before pull")
+        subprocess.run(['git', 'stash', 'push', '-m', 'Auto-stash before step update'], 
+                      check=True, cwd=repo_path)
+        stashed = True
+    else:
+        stashed = False
+    
+    # Pull latest changes before we start making modifications
+    try:
+        subprocess.run(['git', 'pull', '--rebase', 'origin', 'master'], 
+                      capture_output=True, text=True, check=True, cwd=repo_path)
+        logging.info("Pulled latest changes from origin")
+    except subprocess.CalledProcessError as e:
+        # If pull failed and we're now detached, recover
+        if Repo(repo_path).head.is_detached:
+            logging.warning(f"Pull/rebase failed and left detached HEAD: {e.stderr}")
+            subprocess.run(['git', 'rebase', '--abort'], check=True, cwd=repo_path)
+            subprocess.run(['git', 'checkout', 'master'], check=True, cwd=repo_path)
+            subprocess.run(['git', 'reset', '--hard', 'origin/master'], check=True, cwd=repo_path)
+            logging.info("Reset to origin/master after failed rebase")
+        else:
+            logging.warning(f"Pull failed but continuing: {e.stderr}")
+    
+    # Restore stashed changes if we stashed any
+    if stashed:
+        try:
+            subprocess.run(['git', 'stash', 'pop'], check=True, cwd=repo_path)
+            logging.info("Restored stashed changes")
+        except subprocess.CalledProcessError:
+            logging.warning("Failed to restore stashed changes - continuing anyway")
+
 def main():
     load_dotenv()
     email = os.getenv("GARMIN_EMAIL")
@@ -20,6 +70,9 @@ def main():
         return
 
     try:
+        # Ensure clean git state before starting
+        ensure_clean_git_state(repo_path)
+        
         logging.info("Authenticating with Garmin...")
         garmin = Garmin(email, password)
         garmin.login()
@@ -178,27 +231,16 @@ def main():
             repo.index.add(files_to_add)
             repo.index.commit(f"Update steps: {today}")
             
-            # Push changes with rebase fallback for diverging histories
+            # Push changes - we already pulled/rebased at the start, so this should work
             try:
                 subprocess.run(['git', 'push'], 
-                             capture_output=True, text=True, check=True)
+                             capture_output=True, text=True, check=True, cwd=repo_path)
                 logging.info("Push successful.")
             except subprocess.CalledProcessError as e:
-                logging.warning(f"Push failed: {e.stderr}")
-                # Handle diverging changes with rebase and retry
-                if "rejected" in e.stderr or "non-fast-forward" in e.stderr:
-                    try:
-                        logging.info("Attempting rebase and retry...")
-                        subprocess.run(['git', 'pull', '--rebase', 'origin', 'master'], 
-                                     capture_output=True, text=True, check=True)
-                        subprocess.run(['git', 'push'], 
-                                     capture_output=True, text=True, check=True)
-                        logging.info("Push successful after rebase.")
-                    except subprocess.CalledProcessError as rebase_error:
-                        logging.error(f"Rebase and push failed: {rebase_error.stderr}")
-                        raise
-                else:
-                    raise
+                logging.error(f"Push failed: {e.stderr}")
+                # Don't try to recover here - we already synced at the start
+                # This indicates a real problem that needs manual intervention
+                raise
         else:
             logging.info("No changes to commit.")
         
@@ -208,6 +250,7 @@ def main():
 
     except Exception as e:
         logging.error(f"Error: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
