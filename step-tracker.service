@@ -1,0 +1,16 @@
+[Unit]
+Description=Step Tracker - Fetch and update Garmin step data
+After=network.target
+
+[Service]
+Type=oneshot
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/step-tracker
+Environment=PATH=/home/pi/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/pi/.cargo/bin/uv run python update_steps.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

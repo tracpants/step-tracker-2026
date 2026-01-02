@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Step Tracker daily at 6:00 AM
+Requires=step-tracker.service
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
