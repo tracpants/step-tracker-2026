@@ -47,14 +47,13 @@ To run this automatically on a Raspberry Pi:
 ### Automated Setup
 1. Clone this repository to your Pi:
    ```bash
-   git clone <your-repo-url> step-tracker
-   cd step-tracker
+   git clone <your-repo-url> step-tracker-2026
+   cd step-tracker-2026
    ```
 
-2. Run the setup script:
+2. Run the setup script (without sudo):
    ```bash
-   chmod +x setup-pi.sh
-   sudo ./setup-pi.sh
+   ./setup-pi.sh
    ```
 
 3. Configure your Garmin credentials:
@@ -66,10 +65,12 @@ To run this automatically on a Raspberry Pi:
    # TIMEZONE=Australia/Sydney
    ```
 
-4. Test the setup:
+4. Manually copy systemd files and test:
    ```bash
-   sudo systemctl start step-tracker.service
-   sudo systemctl status step-tracker.service
+   sudo cp step-tracker.service step-tracker.timer /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable step-tracker.timer
+   sudo systemctl start step-tracker.timer
    ```
 
 ### Manual Setup
@@ -104,4 +105,4 @@ If you prefer manual setup:
 - Check timer status: `sudo systemctl status step-tracker.timer`
 - Run manually: `sudo systemctl start step-tracker.service`
 
-The service will run daily at 6:00 AM to fetch and update your step data automatically.
+The service runs 4 times daily (6 AM, 12 PM, 6 PM, 12 AM Sydney time) to fetch and update your step data automatically.

@@ -1,9 +1,12 @@
 [Unit]
-Description=Run Step Tracker daily at 6:00 AM
+Description=Run Step Tracker 4x daily (Sydney time)
 Requires=step-tracker.service
 
 [Timer]
-OnCalendar=*-*-* 06:00:00
+OnCalendar=*-*-* 01:00:00
+OnCalendar=*-*-* 07:00:00
+OnCalendar=*-*-* 13:00:00
+OnCalendar=*-*-* 19:00:00
 Persistent=true
 
 [Install]

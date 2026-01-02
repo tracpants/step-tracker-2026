@@ -6,9 +6,9 @@ After=network.target
 Type=oneshot
 User=pi
 Group=pi
-WorkingDirectory=/home/pi/step-tracker
-Environment=PATH=/home/pi/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/home/pi/.cargo/bin/uv run python update_steps.py
+WorkingDirectory=/home/pi/step-tracker-2026
+Environment=PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/pi/.local/bin/uv run python update_steps.py
 StandardOutput=journal
 StandardError=journal
 
