@@ -59,6 +59,31 @@
             line-height: 1.5;
             box-shadow: 0 8px 24px rgba(0,0,0,0.45);
         }
+
+        /* Legend styling */
+        .legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .legend-text {
+            color: #768390;
+        }
+
+        .legend-colors {
+            display: flex;
+            gap: 2px;
+        }
+
+        .legend-box {
+            width: 10px;
+            height: 10px;
+            border-radius: 1px;
+        }
     </style>
 </head>
 <body>
@@ -76,6 +101,18 @@
         </div>
 
         <div id="cal-heatmap"></div>
+        
+        <div class="legend">
+            <span class="legend-text">0 steps</span>
+            <div class="legend-colors">
+                <div class="legend-box" style="background-color: #c9d1d9;"></div>
+                <div class="legend-box" style="background-color: #14432a;"></div>
+                <div class="legend-box" style="background-color: #166b34;"></div>
+                <div class="legend-box" style="background-color: #37a446;"></div>
+                <div class="legend-box" style="background-color: #4dd05a;"></div>
+            </div>
+            <span class="legend-text">10k+ steps</span>
+        </div>
     </div>
 
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
