@@ -196,7 +196,7 @@ def main():
             steps_updated = False
         else:
             with open(json_path, "w") as f:
-                json.dump(data_points, f, sort_keys=True)
+                json.dump(data_points, f, sort_keys=True, indent=2)
             logging.info(f"Database updated. {total_changes} days updated. Total days tracked: {len(data_points)}")
             steps_updated = True
 
