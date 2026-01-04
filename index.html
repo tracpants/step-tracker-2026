@@ -126,7 +126,16 @@
         const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         const cal = new CalHeatmap();
         
-        fetch('./steps_data.json?t=' + Date.now()).then(r => r.json()).then(data => {
+        fetch('./steps_data.json?t=' + Date.now()).then(r => {
+            // Get the Last-Modified header to show actual file update time
+            const lastModified = r.headers.get('Last-Modified');
+            let fileUpdateTime = null;
+            if (lastModified) {
+                fileUpdateTime = new Date(lastModified);
+            }
+
+            return r.json().then(data => ({ data, fileUpdateTime }));
+        }).then(({ data, fileUpdateTime }) => {
             // Convert data to array format expected by cal-heatmap
             const chartData = [];
             Object.keys(data).forEach(dateStr => {
@@ -148,11 +157,11 @@
 
             let total = 0, streak = 0, active = true;
             let today = new Date(); today.setHours(0,0,0,0);
-            
+
             Object.keys(data).sort().reverse().forEach(dateStr => {
                 let steps = data[dateStr];
                 total += steps;
-                
+
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
                     if (steps >= 10000) streak++;
@@ -163,24 +172,21 @@
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("current-streak").innerText = streak;
 
-            // Calculate and display last updated time
-            const lastDate = Object.keys(data).sort().pop();
-            if (lastDate) {
-                const lastUpdateDate = new Date(lastDate + 'T00:00:00');
+            // Calculate and display last updated time based on file modification
+            if (fileUpdateTime) {
                 const now = new Date();
-                const diffMs = now - lastUpdateDate;
-                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMs = now - fileUpdateTime;
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMinutes / 60);
                 const diffDays = Math.floor(diffHours / 24);
 
                 let timeAgo;
-                if (diffDays === 0) {
-                    if (diffHours === 0) {
-                        timeAgo = "today";
-                    } else if (diffHours === 1) {
-                        timeAgo = "1 hour ago";
-                    } else {
-                        timeAgo = diffHours + " hours ago";
-                    }
+                if (diffMinutes < 1) {
+                    timeAgo = "just now";
+                } else if (diffMinutes < 60) {
+                    timeAgo = diffMinutes === 1 ? "1 minute ago" : diffMinutes + " minutes ago";
+                } else if (diffHours < 24) {
+                    timeAgo = diffHours === 1 ? "1 hour ago" : diffHours + " hours ago";
                 } else if (diffDays === 1) {
                     timeAgo = "yesterday";
                 } else {
