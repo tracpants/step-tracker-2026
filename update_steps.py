@@ -170,9 +170,9 @@ def main():
         for entry in stats:
             date_str = entry['calendarDate']
             steps = entry['totalSteps']
-            
-            if date_str not in data_points:
-                # New date
+
+            if date_str not in data_points or data_points[date_str] is None:
+                # New date or date with None value
                 data_points[date_str] = steps
                 new_count += 1
                 logging.info(f"  NEW: {date_str} = {steps} steps")
