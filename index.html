@@ -34,27 +34,14 @@
             display: inline-block;
         }
 
-        /* Animated rainbow gradient for personal best day */
-        @keyframes rainbow-gradient {
-            0% { stroke: #ff0000; }      /* Red */
-            14% { stroke: #ff7f00; }     /* Orange */
-            28% { stroke: #ffff00; }     /* Yellow */
-            42% { stroke: #00ff00; }     /* Green */
-            57% { stroke: #0000ff; }     /* Blue */
-            71% { stroke: #4b0082; }     /* Indigo */
-            85% { stroke: #9400d3; }     /* Violet */
-            100% { stroke: #ff0000; }    /* Back to Red */
-        }
-
-        /* SVG-friendly highlight for the max-step day with animated rainbow */
+        /* SVG-friendly highlight for the max-step day (box-shadow doesn't apply to SVG rects) */
         #cal-heatmap rect.is-max-day {
+            stroke: #ffd700;
             stroke-width: 2px;
             /* ensure stroke is drawn clearly on top of the fill */
             paint-order: stroke;
             /* keep stroke sizing stable */
             vector-effect: non-scaling-stroke;
-            /* Apply rainbow animation */
-            animation: rainbow-gradient 3s linear infinite;
         }
 
         /* Custom tooltip (more reliable than SVG <title> tooltips across browsers) */
@@ -312,13 +299,13 @@
                     const isMaxDay = dateStr === maxStepDate;
                     const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
 
-                    // Highlight max step day with animated rainbow gradient (SVG-friendly)
+                    // Highlight max step day with a gold outline (SVG-friendly)
                     if (isMaxDay) {
                         cell.classList.add('is-max-day');
-                        // Set explicit attributes to ensure animation works properly
+                        // Set explicitly too (helps if styles get overridden by library updates)
+                        cell.setAttribute('stroke', '#ffd700');
                         cell.setAttribute('stroke-width', '2');
                         cell.setAttribute('paint-order', 'stroke');
-                        // Note: stroke color is handled by CSS animation, not set here
                         // Avoid glow/shadows here because SVG may clip filters at the cell bounds
 
                         // Add confetti celebration on click
@@ -332,7 +319,7 @@
                                 particleCount: 100,
                                 spread: 70,
                                 origin: { x, y },
-                                colors: ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3'],
+                                colors: ['#ffd700', '#ffed4e', '#ffaa00', '#ff8800'],
                                 ticks: 200,
                                 gravity: 1.2,
                                 scalar: 1.2
