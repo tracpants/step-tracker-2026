@@ -295,6 +295,11 @@
                         return;
                     }
 
+                    // Check if date is in the future - disable tooltips for future dates
+                    const todayDate = new Date();
+                    todayDate.setHours(0,0,0,0);
+                    const isFutureDate = cellDate > todayDate;
+
                     const steps = stepsByDate.get(dateStr) ?? 0;
                     const isMaxDay = dateStr === maxStepDate;
                     const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
@@ -325,6 +330,11 @@
                                 scalar: 1.2
                             });
                         });
+                    }
+
+                    // Skip tooltips for future dates
+                    if (isFutureDate) {
+                        return;
                     }
 
                     // Fallback title (some environments still show this)
