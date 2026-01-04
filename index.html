@@ -95,6 +95,10 @@
                 <div class="label">Total Steps</div>
             </div>
             <div>
+                <div class="stat" id="daily-average">-</div>
+                <div class="label">Daily Average</div>
+            </div>
+            <div>
                 <div class="stat" id="current-streak">-</div>
                 <div class="label">10k+ Streak</div>
             </div>
@@ -157,6 +161,7 @@
 
             let total = 0, streak = 0, active = true;
             let today = new Date(); today.setHours(0,0,0,0);
+            let dayCount = Object.keys(data).length;
 
             Object.keys(data).sort().reverse().forEach(dateStr => {
                 let steps = data[dateStr];
@@ -169,7 +174,10 @@
                 }
             });
 
+            const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
+
             document.getElementById("total-steps").innerText = fmt(total);
+            document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
 
             // Calculate and display last updated time based on file modification
