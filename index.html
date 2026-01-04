@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
     <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/plugins/CalendarLabel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <script src="./config.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
@@ -306,6 +307,24 @@
                         cell.setAttribute('stroke-width', '2');
                         cell.setAttribute('paint-order', 'stroke');
                         // Avoid glow/shadows here because SVG may clip filters at the cell bounds
+
+                        // Add confetti celebration on click
+                        cell.style.cursor = 'pointer';
+                        cell.addEventListener('click', (evt) => {
+                            const rect = cell.getBoundingClientRect();
+                            const x = (rect.left + rect.width / 2) / window.innerWidth;
+                            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { x, y },
+                                colors: ['#ffd700', '#ffed4e', '#ffaa00', '#ff8800'],
+                                ticks: 200,
+                                gravity: 1.2,
+                                scalar: 1.2
+                            });
+                        });
                     }
 
                     // Fallback title (some environments still show this)
