@@ -113,6 +113,8 @@
             </div>
             <span class="legend-text">10k+</span>
         </div>
+
+        <div class="label" id="last-updated" style="margin-top: 15px;">Last updated: -</div>
     </div>
 
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
@@ -160,6 +162,33 @@
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("current-streak").innerText = streak;
+
+            // Calculate and display last updated time
+            const lastDate = Object.keys(data).sort().pop();
+            if (lastDate) {
+                const lastUpdateDate = new Date(lastDate + 'T00:00:00');
+                const now = new Date();
+                const diffMs = now - lastUpdateDate;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+
+                let timeAgo;
+                if (diffDays === 0) {
+                    if (diffHours === 0) {
+                        timeAgo = "today";
+                    } else if (diffHours === 1) {
+                        timeAgo = "1 hour ago";
+                    } else {
+                        timeAgo = diffHours + " hours ago";
+                    }
+                } else if (diffDays === 1) {
+                    timeAgo = "yesterday";
+                } else {
+                    timeAgo = diffDays + " days ago";
+                }
+
+                document.getElementById("last-updated").innerText = "Last updated: " + timeAgo;
+            }
 
             cal.paint(
                 {
