@@ -164,6 +164,7 @@
             });
 
             let total = 0, totalKm = 0, streak = 0, active = true;
+            let streakStartDate = null, streakEndDate = null;
             let today = new Date(); today.setHours(0,0,0,0);
             let dayCount = Object.keys(data).length;
 
@@ -176,8 +177,13 @@
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
-                    if (steps >= 10000) streak++;
-                    else if (date.getTime() !== today.getTime()) active = false;
+                    if (steps >= 10000) {
+                        streak++;
+                        if (streakEndDate === null) streakEndDate = dateStr; // First day we encounter (most recent)
+                        streakStartDate = dateStr; // Keep updating to get the earliest day
+                    } else if (date.getTime() !== today.getTime()) {
+                        active = false;
+                    }
                 }
             });
 
@@ -369,6 +375,7 @@
                 // Add tooltips for Total Steps and Daily Average stats
                 const totalStepsEl = document.getElementById('total-steps');
                 const dailyAverageEl = document.getElementById('daily-average');
+                const streakEl = document.getElementById('current-streak');
 
                 if (totalStepsEl) {
                     const totalStepsTooltip = `${totalKm.toFixed(1)} km total`;
@@ -384,6 +391,31 @@
                     dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
                     dailyAverageEl.addEventListener('mouseleave', hideTooltip);
                     dailyAverageEl.style.cursor = 'help';
+                }
+
+                if (streakEl && streak > 0 && streakStartDate && streakEndDate) {
+                    const formatStreakDate = (dateStr) => {
+                        const date = new Date(dateStr + 'T00:00:00');
+                        return date.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                    };
+
+                    let streakTooltip;
+                    if (streakStartDate === streakEndDate) {
+                        // Single day streak
+                        streakTooltip = `${formatStreakDate(streakStartDate)}`;
+                    } else {
+                        // Multi-day streak
+                        streakTooltip = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
+                    }
+
+                    streakEl.addEventListener('mouseenter', (evt) => showTooltip(streakTooltip, evt));
+                    streakEl.addEventListener('mousemove', updateTooltipPosition);
+                    streakEl.addEventListener('mouseleave', hideTooltip);
+                    streakEl.style.cursor = 'help';
                 }
             }, 500);
         });
