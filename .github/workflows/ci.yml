@@ -17,11 +17,16 @@ jobs:
     - name: Check if should skip tests
       id: skip_check
       run: |
-        if [[ "${{ github.event.head_commit.message }}" == *"Update steps:"* ]] || [[ "${{ github.event.head_commit.message }}" == *"[skip ci]"* ]]; then
+        # Get the latest commit message
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Commit message: $COMMIT_MSG"
+        
+        if [[ "$COMMIT_MSG" == *"Update steps:"* ]] || [[ "$COMMIT_MSG" == *"[skip ci]"* ]]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping tests for automated step update"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Running full test suite"
         fi
     
     - name: Install uv
