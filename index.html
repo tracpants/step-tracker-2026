@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
     <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/plugins/CalendarLabel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         // Skip GoatCounter tracking for development environments
         if (window.location.hostname === 'localhost' || 
@@ -83,6 +84,15 @@
             font-weight: 600;
             font-size: 13px;
             color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats-card-header svg {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2;
         }
 
         .stats-card-body {
@@ -118,6 +128,15 @@
 
         .stats-card-icon {
             font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stats-card-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke-width: 2;
         }
 
         .stats-card-footer {
@@ -288,9 +307,19 @@
         const cal = new CalHeatmap();
 
         /**
+         * Render a Lucide icon by name
+         * @param {string} iconName - Name of the Lucide icon (e.g., 'trophy', 'map-pin')
+         * @returns {string} HTML string for the icon
+         */
+        const renderIcon = (iconName) => {
+            return `<i data-lucide="${iconName}"></i>`;
+        };
+
+        /**
          * Render a reusable stats card for tooltips
          * @param {Object} config - Configuration object
          * @param {string} config.title - Optional header title
+         * @param {string} config.titleIcon - Optional icon name for the title
          * @param {Array} config.stats - Array of stat objects {label, value, icon}
          * @param {string} config.footer - Optional footer text
          * @param {string} config.simple - Optional simple text for basic tooltips
@@ -306,7 +335,11 @@
 
             // Header
             if (config.title) {
-                html += `<div class="stats-card-header">${config.title}</div>`;
+                let titleContent = config.title;
+                if (config.titleIcon) {
+                    titleContent = `${renderIcon(config.titleIcon)} ${config.title}`;
+                }
+                html += `<div class="stats-card-header">${titleContent}</div>`;
             }
 
             // Body with stats
@@ -316,7 +349,7 @@
                     html += '<div class="stats-card-row">';
                     html += `<div class="stats-card-label">`;
                     if (stat.icon) {
-                        html += `<span class="stats-card-icon">${stat.icon}</span>`;
+                        html += `<span class="stats-card-icon">${renderIcon(stat.icon)}</span>`;
                     }
                     html += `<span>${stat.label}</span>`;
                     html += '</div>';
@@ -514,6 +547,10 @@
                     tooltipEl.style.display = 'block';
                     tooltipEl.setAttribute('aria-hidden', 'false');
                     updateTooltipPosition(evt);
+                    // Initialize Lucide icons in the tooltip
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
                 };
 
                 const hideTooltip = () => {
@@ -565,7 +602,7 @@
 
                     // Add steps stat
                     statsArray.push({
-                        icon: isMaxDay ? '🏆' : '👟',
+                        icon: isMaxDay ? 'trophy' : 'footprints',
                         label: 'Steps',
                         value: steps ? fmt(steps) : 'No steps'
                     });
@@ -573,14 +610,15 @@
                     // Add distance stat if available
                     if (km > 0) {
                         statsArray.push({
-                            icon: '📍',
+                            icon: 'map-pin',
                             label: 'Distance',
                             value: `${km} km`
                         });
                     }
 
                     const tooltipHtml = renderStatsCard({
-                        title: isMaxDay ? '🏆 Personal Best!' : formatDate(cellDate),
+                        title: isMaxDay ? 'Personal Best!' : formatDate(cellDate),
+                        titleIcon: isMaxDay ? 'trophy' : null,
                         stats: statsArray
                     });
 
@@ -627,7 +665,7 @@
                     }
 
                     // Fallback title (some environments still show this) - use plain text
-                    const plainTextTitle = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
+                    const plainTextTitle = `${isMaxDay ? 'Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
                     cell.setAttribute('title', plainTextTitle);
 
                     // Custom tooltip handlers
@@ -650,12 +688,12 @@
                         title: 'Total Steps',
                         stats: [
                             {
-                                icon: '🚶',
+                                icon: 'footprints',
                                 label: 'Steps',
                                 value: fmt(total)
                             },
                             {
-                                icon: '📍',
+                                icon: 'map-pin',
                                 label: 'Distance',
                                 value: `${totalKm.toFixed(1)} km`
                             }
@@ -682,12 +720,12 @@
                         title: 'Daily Average',
                         stats: [
                             {
-                                icon: '📊',
+                                icon: 'bar-chart-3',
                                 label: 'Steps per day',
                                 value: fmt(dailyAverage)
                             },
                             {
-                                icon: '📍',
+                                icon: 'map-pin',
                                 label: 'Distance per day',
                                 value: `${averageKm} km`
                             }
@@ -732,12 +770,12 @@
                         title: '10k+ Streak',
                         stats: [
                             {
-                                icon: '🔥',
+                                icon: 'flame',
                                 label: 'Current streak',
                                 value: `${streak} ${streak === 1 ? 'day' : 'days'}`
                             },
                             {
-                                icon: '📅',
+                                icon: 'calendar',
                                 label: 'Period',
                                 value: dateRange
                             }
