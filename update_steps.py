@@ -3,12 +3,47 @@ import json
 import datetime
 import logging
 import subprocess
+import requests
 from zoneinfo import ZoneInfo
 from garminconnect import Garmin
 from dotenv import load_dotenv
 from git import Repo
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def send_healthcheck(endpoint="", data=None):
+    """Send a healthcheck signal to Healthchecks.io
+    
+    Args:
+        endpoint: Additional endpoint path (e.g., "/start", "/fail", "")
+        data: Optional diagnostic data to include in POST request
+    """
+    healthcheck_url = os.getenv("HEALTHCHECKS_URL")
+    if not healthcheck_url:
+        return  # Skip healthcheck if not configured
+    
+    try:
+        url = healthcheck_url + endpoint
+        if data:
+            response = requests.post(url, data=data, timeout=10)
+        else:
+            response = requests.get(url, timeout=10)
+        logging.debug(f"Healthcheck ping sent to {endpoint or 'success'}: {response.status_code}")
+    except requests.RequestException as e:
+        logging.warning(f"Healthcheck ping failed ({endpoint or 'success'}): {e}")
+
+def send_healthcheck_start():
+    """Signal the start of the script execution"""
+    send_healthcheck("/start")
+
+def send_healthcheck_success():
+    """Signal successful completion of the script"""
+    send_healthcheck()
+
+def send_healthcheck_failure(error_message=None):
+    """Signal script failure with optional error details"""
+    data = f"Step tracker error: {error_message}" if error_message else "Step tracker failed"
+    send_healthcheck("/fail", data)
 
 def get_current_branch(repo_path):
     """Get the current git branch name"""
@@ -78,9 +113,12 @@ def main():
 
     if not email or not password:
         logging.error("Credentials missing. Please check .env file.")
+        send_healthcheck_failure("Missing Garmin credentials")
         return
 
     try:
+        # Signal the start of script execution
+        send_healthcheck_start()
         # Ensure clean git state before starting
         ensure_clean_git_state(repo_path)
 
@@ -311,9 +349,13 @@ def main():
         # Update last run date to avoid redundant API calls on subsequent runs
         with open(last_run_file, "w") as f:
             f.write(today.isoformat())
+        
+        # Signal successful completion
+        send_healthcheck_success()
 
     except Exception as e:
         logging.error(f"Error: {e}")
+        send_healthcheck_failure(str(e))
         raise
 
 if __name__ == "__main__":
