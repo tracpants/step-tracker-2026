@@ -331,7 +331,7 @@ def main():
         if files_to_add:
             logging.info(f"Changes detected in: {', '.join(files_to_add)}. Committing...")
             repo.index.add(files_to_add)
-            repo.index.commit(f"Update steps: {today}")
+            repo.index.commit(f"Update steps: {today} [skip ci]")
             
             # Only push if we're on master branch
             current_branch = get_current_branch(repo_path)
