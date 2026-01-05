@@ -99,9 +99,19 @@ def main():
         
         # Read existing data to determine what dates we need to fetch
         existing_data = {}
+        existing_metadata = {}
         if os.path.exists(json_path):
             with open(json_path, "r") as f:
-                existing_data = json.load(f)
+                json_content = json.load(f)
+                
+                # Handle new structure with metadata, or legacy flat structure
+                if isinstance(json_content, dict) and "data" in json_content and "metadata" in json_content:
+                    # New structure
+                    existing_data = json_content["data"]
+                    existing_metadata = json_content["metadata"]
+                else:
+                    # Legacy structure - treat entire content as data
+                    existing_data = json_content
         
         # Check last run date to avoid redundant API calls
         last_run_file = os.path.join(repo_path, ".last_run")
@@ -230,8 +240,16 @@ def main():
             logging.info("No new step data to update.")
             steps_updated = False
         else:
+            # Create new JSON structure with metadata
+            output_data = {
+                "metadata": {
+                    "lastUpdated": now_in_tz.isoformat(),
+                    "timezone": timezone_str
+                },
+                "data": data_points
+            }
             with open(json_path, "w") as f:
-                json.dump(data_points, f, sort_keys=True, indent=2)
+                json.dump(output_data, f, indent=2)
             logging.info(f"Database updated. {total_changes} days updated. Total days tracked: {len(data_points)}")
             steps_updated = True
 

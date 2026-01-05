@@ -131,15 +131,19 @@
         const cal = new CalHeatmap();
         
         fetch('./steps_data.json?t=' + Date.now()).then(r => {
-            // Get the Last-Modified header to show actual file update time
-            const lastModified = r.headers.get('Last-Modified');
-            let fileUpdateTime = null;
-            if (lastModified) {
-                fileUpdateTime = new Date(lastModified);
+            return r.json();
+        }).then(jsonData => {
+            // Handle new structure with metadata, or legacy flat structure
+            let data, lastUpdated;
+            if (jsonData && typeof jsonData === 'object' && 'data' in jsonData && 'metadata' in jsonData) {
+                // New structure
+                data = jsonData.data;
+                lastUpdated = jsonData.metadata.lastUpdated ? new Date(jsonData.metadata.lastUpdated) : null;
+            } else {
+                // Legacy structure - treat entire content as data
+                data = jsonData;
+                lastUpdated = null;
             }
-
-            return r.json().then(data => ({ data, fileUpdateTime }));
-        }).then(({ data, fileUpdateTime }) => {
             // Convert data to array format expected by cal-heatmap
             // Handle both old format (integer) and new format (object with steps and km)
             const chartData = [];
@@ -194,10 +198,10 @@
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
 
-            // Calculate and display last updated time based on file modification
-            if (fileUpdateTime) {
+            // Calculate and display last updated time based on metadata timestamp
+            if (lastUpdated) {
                 const now = new Date();
-                const diffMs = now - fileUpdateTime;
+                const diffMs = now - lastUpdated;
                 const diffMinutes = Math.floor(diffMs / (1000 * 60));
                 const diffHours = Math.floor(diffMinutes / 60);
                 const diffDays = Math.floor(diffHours / 24);
