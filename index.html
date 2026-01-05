@@ -602,7 +602,7 @@
 
                     // Add steps stat
                     statsArray.push({
-                        icon: isMaxDay ? 'trophy' : 'footprints',
+                        icon: 'footprints',
                         label: 'Steps',
                         value: steps ? fmt(steps) : 'No steps'
                     });
@@ -616,9 +616,18 @@
                         });
                     }
 
+                    // Add personal best badge for max day
+                    if (isMaxDay) {
+                        statsArray.push({
+                            icon: 'trophy',
+                            label: 'Personal Best',
+                            value: ''
+                        });
+                    }
+
                     const tooltipHtml = renderStatsCard({
-                        title: isMaxDay ? 'Personal Best!' : formatDate(cellDate),
-                        titleIcon: isMaxDay ? 'trophy' : null,
+                        title: formatDate(cellDate),
+                        titleIcon: null,
                         stats: statsArray
                     });
 
