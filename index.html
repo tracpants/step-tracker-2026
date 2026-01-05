@@ -262,6 +262,25 @@
 
             cal.on('click', function(event, timestamp, value) {
                 console.log('Clicked:', timestamp, value);
+                
+                // Track heatmap cell interactions
+                if (window.goatcounter && window.goatcounter.count && value > 0) {
+                    const clickedDate = new Date(timestamp);
+                    const dateStr = dayjs(clickedDate)
+                        .tz(window.CONFIG?.TIMEZONE || dayjs.tz.guess())
+                        .format('YYYY-MM-DD');
+                    
+                    let stepCategory = 'low-steps'; // 0-2999
+                    if (value >= 10000) stepCategory = 'goal-achieved';
+                    else if (value >= 6000) stepCategory = 'moderate-steps';
+                    else if (value >= 3000) stepCategory = 'low-moderate-steps';
+                    
+                    window.goatcounter.count({
+                        path: `heatmap-cell-clicked-${stepCategory}`,
+                        title: `Heatmap Cell Clicked: ${value} steps (${stepCategory})`,
+                        event: true
+                    });
+                }
             });
 
             // Wait for calendar to render and add blackout styling + a reliable custom tooltip
@@ -358,6 +377,15 @@
                             const x = (rect.left + rect.width / 2) / window.innerWidth;
                             const y = (rect.top + rect.height / 2) / window.innerHeight;
 
+                            // Track personal best interaction
+                            if (window.goatcounter && window.goatcounter.count) {
+                                window.goatcounter.count({
+                                    path: 'personal-best-clicked',
+                                    title: `Personal Best Day Clicked: ${steps} steps on ${formatDate(cellDate)}`,
+                                    event: true
+                                });
+                            }
+
                             confetti({
                                 particleCount: 100,
                                 spread: 70,
@@ -395,7 +423,17 @@
 
                 if (totalStepsEl) {
                     const totalStepsTooltip = `${totalKm.toFixed(1)} km total`;
-                    totalStepsEl.addEventListener('mouseenter', (evt) => showTooltip(totalStepsTooltip, evt));
+                    totalStepsEl.addEventListener('mouseenter', (evt) => {
+                        // Track total steps tooltip interaction
+                        if (window.goatcounter && window.goatcounter.count) {
+                            window.goatcounter.count({
+                                path: 'stat-tooltip-total-steps',
+                                title: 'Total Steps Tooltip Viewed',
+                                event: true
+                            });
+                        }
+                        showTooltip(totalStepsTooltip, evt);
+                    });
                     totalStepsEl.addEventListener('mousemove', updateTooltipPosition);
                     totalStepsEl.addEventListener('mouseleave', hideTooltip);
                     totalStepsEl.style.cursor = 'help';
@@ -403,7 +441,17 @@
 
                 if (dailyAverageEl) {
                     const dailyAverageTooltip = `${averageKm} km average per day`;
-                    dailyAverageEl.addEventListener('mouseenter', (evt) => showTooltip(dailyAverageTooltip, evt));
+                    dailyAverageEl.addEventListener('mouseenter', (evt) => {
+                        // Track daily average tooltip interaction
+                        if (window.goatcounter && window.goatcounter.count) {
+                            window.goatcounter.count({
+                                path: 'stat-tooltip-daily-average',
+                                title: 'Daily Average Tooltip Viewed',
+                                event: true
+                            });
+                        }
+                        showTooltip(dailyAverageTooltip, evt);
+                    });
                     dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
                     dailyAverageEl.addEventListener('mouseleave', hideTooltip);
                     dailyAverageEl.style.cursor = 'help';
@@ -428,7 +476,17 @@
                         streakTooltip = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
                     }
 
-                    streakEl.addEventListener('mouseenter', (evt) => showTooltip(streakTooltip, evt));
+                    streakEl.addEventListener('mouseenter', (evt) => {
+                        // Track streak tooltip interaction
+                        if (window.goatcounter && window.goatcounter.count) {
+                            window.goatcounter.count({
+                                path: 'stat-tooltip-streak',
+                                title: `Streak Tooltip Viewed: ${streak} day streak`,
+                                event: true
+                            });
+                        }
+                        showTooltip(streakTooltip, evt);
+                    });
                     streakEl.addEventListener('mousemove', updateTooltipPosition);
                     streakEl.addEventListener('mouseleave', hideTooltip);
                     streakEl.style.cursor = 'help';
