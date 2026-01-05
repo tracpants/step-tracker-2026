@@ -163,14 +163,16 @@
                 }
             });
 
-            let total = 0, streak = 0, active = true;
+            let total = 0, totalKm = 0, streak = 0, active = true;
             let today = new Date(); today.setHours(0,0,0,0);
             let dayCount = Object.keys(data).length;
 
             Object.keys(data).sort().reverse().forEach(dateStr => {
                 const entry = data[dateStr];
                 let steps = typeof entry === 'object' ? entry.steps : entry;
+                let km = typeof entry === 'object' ? entry.km : 0;
                 total += steps;
+                totalKm += km;
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
@@ -180,6 +182,7 @@
             });
 
             const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
+            const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
@@ -362,6 +365,26 @@
                 // If you leave the SVG entirely, hide tooltip
                 const svg = document.querySelector('#cal-heatmap svg');
                 if (svg) svg.addEventListener('mouseleave', hideTooltip);
+
+                // Add tooltips for Total Steps and Daily Average stats
+                const totalStepsEl = document.getElementById('total-steps');
+                const dailyAverageEl = document.getElementById('daily-average');
+
+                if (totalStepsEl) {
+                    const totalStepsTooltip = `${totalKm.toFixed(1)} km total`;
+                    totalStepsEl.addEventListener('mouseenter', (evt) => showTooltip(totalStepsTooltip, evt));
+                    totalStepsEl.addEventListener('mousemove', updateTooltipPosition);
+                    totalStepsEl.addEventListener('mouseleave', hideTooltip);
+                    totalStepsEl.style.cursor = 'help';
+                }
+
+                if (dailyAverageEl) {
+                    const dailyAverageTooltip = `${averageKm} km average per day`;
+                    dailyAverageEl.addEventListener('mouseenter', (evt) => showTooltip(dailyAverageTooltip, evt));
+                    dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
+                    dailyAverageEl.addEventListener('mouseleave', hideTooltip);
+                    dailyAverageEl.style.cursor = 'help';
+                }
             }, 500);
         });
     </script>
