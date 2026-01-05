@@ -30,7 +30,7 @@
     <style>
         body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; text-align: center; }
-        .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; }
+        .stats { display: flex; gap: 20px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
         .stat { font-size: 24px; font-weight: bold; }
         .label { font-size: 12px; color: #8b949e; }
         #cal-heatmap { margin: 20px 0; }
@@ -114,6 +114,10 @@
             <div>
                 <div class="stat" id="current-streak">-</div>
                 <div class="label">10k+ Streak</div>
+            </div>
+            <div>
+                <div class="stat" id="personal-best">-</div>
+                <div class="label">Personal Best</div>
             </div>
         </div>
 
@@ -209,6 +213,18 @@
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
+            
+            // Update personal best display
+            if (maxSteps > 0 && maxStepDate) {
+                const maxDate = new Date(maxStepDate + 'T00:00:00');
+                const formattedDate = maxDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                document.getElementById("personal-best").innerHTML = `${fmt(maxSteps)}<br><small style="font-size: 10px; color: #8b949e;">${formattedDate}</small>`;
+            } else {
+                document.getElementById("personal-best").innerText = "-";
+            }
 
             // Calculate and display last updated time based on metadata timestamp
             if (lastUpdated) {
