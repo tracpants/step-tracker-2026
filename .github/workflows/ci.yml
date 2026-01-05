@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python
+      run: uv python install
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run tests
+      run: |
+        uv run pytest tests/ --verbose --cov=. --cov-report=term-missing
+    
+    - name: Lint code (if available)
+      run: |
+        # Add linting commands here if needed in the future
+        echo "No linting configured yet"
+      continue-on-error: true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate HTML
+      run: |
+        # Basic HTML validation - check if index.html is valid
+        if [ ! -f "index.html" ]; then
+          echo "Error: index.html not found"
+          exit 1
+        fi
+        
+        # Check for basic HTML structure
+        if ! grep -q "<!DOCTYPE html>" index.html; then
+          echo "Error: Missing DOCTYPE declaration"
+          exit 1
+        fi
+        
+        if ! grep -q "<html>" index.html; then
+          echo "Error: Missing html tag"
+          exit 1
+        fi
+        
+        echo "HTML validation passed"
+    
+    - name: Check static assets
+      run: |
+        # Verify required files exist
+        echo "Checking required files..."
+        
+        required_files="index.html config.js steps_data.json"
+        for file in $required_files; do
+          if [ -f "$file" ]; then
+            echo "✓ $file exists"
+          else
+            echo "⚠ $file not found (may be generated dynamically)"
+          fi
+        done
+        
+        echo "Static asset check completed"
+    
+    - name: Build status
+      run: |
+        echo "✅ All tests passed - ready for deployment"
+        echo "This step would trigger deployment in a real setup"

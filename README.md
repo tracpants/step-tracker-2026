@@ -4,6 +4,16 @@ A step tracking application that displays Garmin Connect data as a GitHub-style 
 
 Live: https://steps.467542981.xyz/
 
+## Development
+
+```bash
+# Run tests
+uv run pytest
+
+# Install test dependencies
+uv sync --extra test
+```
+
 ## Analytics
 
 This site uses [GoatCounter](https://www.goatcounter.com) for privacy-friendly analytics.
