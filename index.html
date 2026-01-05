@@ -30,10 +30,12 @@
     <style>
         body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; text-align: center; }
-        .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; }
+        .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
+        .stats.loaded { opacity: 1; }
         .stat { font-size: 24px; font-weight: bold; }
         .label { font-size: 12px; color: #8b949e; }
-        #cal-heatmap { margin: 20px 0; }
+        #cal-heatmap { margin: 20px 0; opacity: 0; transition: opacity 0.6s ease-in; }
+        #cal-heatmap.loaded { opacity: 1; }
 
         /* Add breathing room so SVG strokes (e.g., max-day outline) don't get clipped at edges */
         #cal-heatmap svg {
@@ -97,6 +99,47 @@
             height: 10px;
             border-radius: 1px;
         }
+
+        /* Loading skeleton */
+        .loading-skeleton {
+            display: block;
+            margin: 20px auto;
+            padding: 3px;
+        }
+
+        .loading-skeleton.hidden {
+            display: none;
+        }
+
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 11px);
+            gap: 4px;
+            margin: 0 auto;
+            width: fit-content;
+        }
+
+        .skeleton-month {
+            display: inline-block;
+            margin: 0 2px;
+        }
+
+        .skeleton-cell {
+            width: 11px;
+            height: 11px;
+            background: #161b22;
+            border-radius: 2px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .legend.loading {
+            opacity: 0.4;
+        }
     </style>
 </head>
 <body>
@@ -117,9 +160,42 @@
             </div>
         </div>
 
+        <!-- Loading skeleton -->
+        <div id="loading-skeleton" class="loading-skeleton">
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <div class="skeleton-month">
+                    <div class="skeleton-grid">
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                    </div>
+                </div>
+                <div class="skeleton-month">
+                    <div class="skeleton-grid">
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                    </div>
+                </div>
+                <div class="skeleton-month">
+                    <div class="skeleton-grid">
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="cal-heatmap"></div>
-        
-        <div class="legend">
+
+        <div class="legend loading">
             <span class="legend-text">0</span>
             <div class="legend-colors">
                 <div class="legend-box" style="background-color: #14432a;"></div>
@@ -210,6 +286,9 @@
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
 
+            // Trigger fade-in animation for stats
+            document.querySelector('.stats').classList.add('loaded');
+
             // Calculate and display last updated time based on metadata timestamp
             if (lastUpdated) {
                 const now = new Date();
@@ -285,6 +364,15 @@
 
             // Wait for calendar to render and add blackout styling + a reliable custom tooltip
             setTimeout(() => {
+                // Hide loading skeleton and show actual heatmap with fade-in
+                const skeleton = document.getElementById('loading-skeleton');
+                const heatmap = document.getElementById('cal-heatmap');
+                const legend = document.querySelector('.legend');
+
+                if (skeleton) skeleton.classList.add('hidden');
+                if (heatmap) heatmap.classList.add('loaded');
+                if (legend) legend.classList.remove('loading');
+
                 const tooltipEl = document.getElementById('step-tooltip');
 
                 const yearStart = new Date(2026, 0, 1);
