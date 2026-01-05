@@ -83,6 +83,12 @@
             gap: 4px;
             margin-top: 10px;
             font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.6s ease-in;
+        }
+
+        .legend.loaded {
+            opacity: 1;
         }
 
         .legend-text {
@@ -137,8 +143,14 @@
             50% { opacity: 0.7; }
         }
 
-        .legend.loading {
-            opacity: 0.4;
+        /* Last updated timestamp styling */
+        .last-updated {
+            opacity: 0;
+            transition: opacity 0.6s ease-in;
+        }
+
+        .last-updated.loaded {
+            opacity: 1;
         }
     </style>
 </head>
@@ -195,7 +207,7 @@
 
         <div id="cal-heatmap"></div>
 
-        <div class="legend loading">
+        <div class="legend">
             <span class="legend-text">0</span>
             <div class="legend-colors">
                 <div class="legend-box" style="background-color: #14432a;"></div>
@@ -206,7 +218,7 @@
             <span class="legend-text">10k+</span>
         </div>
 
-        <div class="label" id="last-updated" style="margin-top: 15px;">Last updated: -</div>
+        <div class="label last-updated" id="last-updated" style="margin-top: 15px;">Last updated: -</div>
     </div>
 
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
@@ -368,10 +380,12 @@
                 const skeleton = document.getElementById('loading-skeleton');
                 const heatmap = document.getElementById('cal-heatmap');
                 const legend = document.querySelector('.legend');
+                const lastUpdated = document.querySelector('.last-updated');
 
                 if (skeleton) skeleton.classList.add('hidden');
                 if (heatmap) heatmap.classList.add('loaded');
-                if (legend) legend.classList.remove('loading');
+                if (legend) legend.classList.add('loaded');
+                if (lastUpdated) lastUpdated.classList.add('loaded');
 
                 const tooltipEl = document.getElementById('step-tooltip');
 
