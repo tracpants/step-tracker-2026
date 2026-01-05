@@ -31,7 +31,7 @@
     <style>
         body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; text-align: center; }
-        .stats { display: flex; gap: 20px; justify-content: center; margin: 20px 0; flex-wrap: wrap; opacity: 0; transition: opacity 0.5s ease-in; }
+        .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
         .stats.loaded { opacity: 1; }
         .stat { font-size: 24px; font-weight: bold; }
         .label { font-size: 12px; color: #8b949e; }
@@ -246,10 +246,6 @@
                 <div class="stat" id="current-streak">-</div>
                 <div class="label">10k+ Streak</div>
             </div>
-            <div>
-                <div class="stat" id="personal-best">-</div>
-                <div class="label">Personal Best</div>
-            </div>
         </div>
 
         <!-- Loading skeleton -->
@@ -438,18 +434,6 @@
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
-            
-            // Update personal best display
-            if (maxSteps > 0 && maxStepDate) {
-                const maxDate = new Date(maxStepDate + 'T00:00:00');
-                const formattedDate = maxDate.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                });
-                document.getElementById("personal-best").innerHTML = `${fmt(maxSteps)}<br><small style="font-size: 10px; color: #8b949e;">${formattedDate}</small>`;
-            } else {
-                document.getElementById("personal-best").innerText = "-";
-            }
 
             // Trigger fade-in animation for stats
             document.querySelector('.stats').classList.add('loaded');
@@ -814,48 +798,6 @@
                     streakEl.style.cursor = 'help';
                 }
 
-                // Add tooltip for Personal Best stats card
-                const personalBestEl = document.getElementById('personal-best');
-                if (personalBestEl && maxSteps > 0 && maxStepDate) {
-                    const maxDate = new Date(maxStepDate + 'T00:00:00');
-                    const formattedMaxDate = maxDate.toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    });
-
-                    const personalBestTooltipHtml = renderStatsCard({
-                        title: 'Personal Best',
-                        stats: [
-                            {
-                                icon: 'trophy',
-                                label: 'Best day',
-                                value: fmt(maxSteps)
-                            },
-                            {
-                                icon: 'calendar',
-                                label: 'Date achieved',
-                                value: formattedMaxDate
-                            }
-                        ]
-                    });
-
-                    personalBestEl.addEventListener('mouseenter', (evt) => {
-                        // Track personal best tooltip interaction
-                        if (window.goatcounter && window.goatcounter.count) {
-                            window.goatcounter.count({
-                                path: 'stat-tooltip-personal-best',
-                                title: `Personal Best Tooltip Viewed: ${maxSteps} steps`,
-                                event: true
-                            });
-                        }
-                        showTooltip(personalBestTooltipHtml, evt);
-                    });
-                    personalBestEl.addEventListener('mousemove', updateTooltipPosition);
-                    personalBestEl.addEventListener('mouseleave', hideTooltip);
-                    personalBestEl.style.cursor = 'help';
-                }
             }, 500);
         });
     </script>
