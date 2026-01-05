@@ -13,19 +13,33 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Check if should skip tests
+      id: skip_check
+      run: |
+        if [[ "${{ github.event.head_commit.message }}" == *"Update steps:"* ]] || [[ "${{ github.event.head_commit.message }}" == *"[skip ci]"* ]]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping tests for automated step update"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+    
     - name: Install uv
+      if: steps.skip_check.outputs.skip != 'true'
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
     
     - name: Set up Python
+      if: steps.skip_check.outputs.skip != 'true'
       run: uv python install
     
     - name: Install dependencies
+      if: steps.skip_check.outputs.skip != 'true'
       run: |
         uv sync --extra test
     
     - name: Run tests
+      if: steps.skip_check.outputs.skip != 'true'
       run: |
         uv run pytest tests/ --verbose --cov=. --cov-report=term-missing
     
