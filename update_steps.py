@@ -151,14 +151,19 @@ def main():
                     # Legacy structure - treat entire content as data
                     existing_data = json_content
         
-        # Check last run date to avoid redundant API calls
-        last_run_file = os.path.join(repo_path, ".last_run")
+        # Check last update time from JSON metadata to avoid redundant API calls
         last_run_date = None
-        if os.path.exists(last_run_file):
-            with open(last_run_file, "r") as f:
-                last_run_str = f.read().strip()
-                if last_run_str:
-                    last_run_date = datetime.date.fromisoformat(last_run_str)
+        if existing_metadata.get("lastUpdated"):
+            try:
+                last_updated = datetime.datetime.fromisoformat(existing_metadata["lastUpdated"])
+                # Convert to date in the appropriate timezone
+                if last_updated.tzinfo:
+                    last_run_date = last_updated.date()
+                else:
+                    # Assume UTC if no timezone info
+                    last_run_date = last_updated.date()
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid lastUpdated format in metadata: {existing_metadata.get('lastUpdated')}")
         
         logging.info(f"Date range analysis: {start_date} to {today}")
         logging.info(f"Existing data contains {len(existing_data)} dates")
@@ -346,9 +351,7 @@ def main():
         else:
             logging.info("No changes to commit.")
         
-        # Update last run date to avoid redundant API calls on subsequent runs
-        with open(last_run_file, "w") as f:
-            f.write(today.isoformat())
+        # Note: Last run tracking is now handled by the JSON metadata's lastUpdated field
         
         # Signal successful completion
         send_healthcheck_success()
