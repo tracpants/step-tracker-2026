@@ -10,6 +10,15 @@ from git import Repo
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def get_current_branch(repo_path):
+    """Get the current git branch name"""
+    try:
+        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                              capture_output=True, text=True, check=True, cwd=repo_path)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
 def ensure_clean_git_state(repo_path):
     """Ensure we're on master branch with a clean state before starting"""
     repo = Repo(repo_path)
@@ -259,20 +268,25 @@ def main():
             files_to_add.append("config.js")
         
         if files_to_add:
-            logging.info(f"Changes detected in: {', '.join(files_to_add)}. Committing and pushing...")
+            logging.info(f"Changes detected in: {', '.join(files_to_add)}. Committing...")
             repo.index.add(files_to_add)
             repo.index.commit(f"Update steps: {today}")
             
-            # Push changes - we already pulled/rebased at the start, so this should work
-            try:
-                subprocess.run(['git', 'push'], 
-                             capture_output=True, text=True, check=True, cwd=repo_path)
-                logging.info("Push successful.")
-            except subprocess.CalledProcessError as e:
-                logging.error(f"Push failed: {e.stderr}")
-                # Don't try to recover here - we already synced at the start
-                # This indicates a real problem that needs manual intervention
-                raise
+            # Only push if we're on master branch
+            current_branch = get_current_branch(repo_path)
+            if current_branch == "master":
+                logging.info("On master branch - pushing changes...")
+                try:
+                    subprocess.run(['git', 'push'], 
+                                 capture_output=True, text=True, check=True, cwd=repo_path)
+                    logging.info("Push successful.")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"Push failed: {e.stderr}")
+                    # Don't try to recover here - we already synced at the start
+                    # This indicates a real problem that needs manual intervention
+                    raise
+            else:
+                logging.warning(f"Not on master branch (current: {current_branch}) - skipping push. Changes committed locally.")
         else:
             logging.info("No changes to commit.")
         
