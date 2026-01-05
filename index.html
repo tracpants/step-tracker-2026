@@ -141,11 +141,15 @@
             return r.json().then(data => ({ data, fileUpdateTime }));
         }).then(({ data, fileUpdateTime }) => {
             // Convert data to array format expected by cal-heatmap
+            // Handle both old format (integer) and new format (object with steps and km)
             const chartData = [];
             Object.keys(data).forEach(dateStr => {
+                const entry = data[dateStr];
+                const steps = typeof entry === 'object' ? entry.steps : entry;
                 chartData.push({
                     date: dateStr,
-                    value: data[dateStr]
+                    value: steps,
+                    km: typeof entry === 'object' ? entry.km : 0
                 });
             });
 
@@ -164,7 +168,8 @@
             let dayCount = Object.keys(data).length;
 
             Object.keys(data).sort().reverse().forEach(dateStr => {
-                let steps = data[dateStr];
+                const entry = data[dateStr];
+                let steps = typeof entry === 'object' ? entry.steps : entry;
                 total += steps;
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
@@ -269,8 +274,8 @@
                 const cells = document.querySelectorAll('#cal-heatmap rect.ch-subdomain-bg');
                 console.log('Found subdomain cells:', cells.length);
 
-                // Pre-index data for O(1) lookup
-                const stepsByDate = new Map(chartData.map(d => [d.date, d.value]));
+                // Pre-index data for O(1) lookup - store full entry with km
+                const dataByDate = new Map(chartData.map(d => [d.date, { steps: d.value, km: d.km }]));
 
                 cells.forEach((cell) => {
                     // Cal-Heatmap binds a datum per cell (D3). Use that timestamp for correct date mapping.
@@ -300,9 +305,17 @@
                     todayDate.setHours(0,0,0,0);
                     const isFutureDate = cellDate > todayDate;
 
-                    const steps = stepsByDate.get(dateStr) ?? 0;
+                    const dayData = dataByDate.get(dateStr) ?? { steps: 0, km: 0 };
+                    const steps = dayData.steps;
+                    const km = dayData.km;
                     const isMaxDay = dateStr === maxStepDate;
-                    const tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps on ${formatDate(cellDate)}`;
+
+                    // Build tooltip text with steps and km
+                    let tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps`;
+                    if (km > 0) {
+                        tooltipText += ` (${km} km)`;
+                    }
+                    tooltipText += ` on ${formatDate(cellDate)}`;
 
                     // Highlight max step day with a gold outline (SVG-friendly)
                     if (isMaxDay) {
