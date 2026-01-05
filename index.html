@@ -64,15 +64,72 @@
             z-index: 9999;
             pointer-events: none;
             display: none;
-            max-width: 300px;
-            padding: 8px 10px;
+            max-width: 320px;
+            min-width: 200px;
             border: 1px solid #30363d;
-            border-radius: 6px;
+            border-radius: 8px;
             background: #161b22;
             color: #c9d1d9;
             font-size: 12px;
             line-height: 1.5;
             box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+            overflow: hidden;
+        }
+
+        /* StatsCard components */
+        .stats-card-header {
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid #21262d;
+            font-weight: 600;
+            font-size: 13px;
+            color: #e6edf3;
+        }
+
+        .stats-card-body {
+            padding: 8px 12px;
+        }
+
+        .stats-card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            gap: 16px;
+        }
+
+        .stats-card-row:not(:last-child) {
+            border-bottom: 1px solid #21262d;
+        }
+
+        .stats-card-label {
+            color: #8b949e;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats-card-value {
+            color: #e6edf3;
+            font-weight: 600;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .stats-card-icon {
+            font-size: 14px;
+        }
+
+        .stats-card-footer {
+            padding: 8px 12px;
+            border-top: 1px solid #21262d;
+            font-size: 11px;
+            color: #8b949e;
+            text-align: center;
+        }
+
+        .stats-card-simple {
+            padding: 10px 12px;
         }
 
         /* Legend styling */
@@ -229,7 +286,54 @@
 
         const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         const cal = new CalHeatmap();
-        
+
+        /**
+         * Render a reusable stats card for tooltips
+         * @param {Object} config - Configuration object
+         * @param {string} config.title - Optional header title
+         * @param {Array} config.stats - Array of stat objects {label, value, icon}
+         * @param {string} config.footer - Optional footer text
+         * @param {string} config.simple - Optional simple text for basic tooltips
+         * @returns {string} HTML string for the stats card
+         */
+        const renderStatsCard = (config) => {
+            // Simple mode: just render plain text with padding
+            if (config.simple) {
+                return `<div class="stats-card-simple">${config.simple}</div>`;
+            }
+
+            let html = '';
+
+            // Header
+            if (config.title) {
+                html += `<div class="stats-card-header">${config.title}</div>`;
+            }
+
+            // Body with stats
+            if (config.stats && config.stats.length > 0) {
+                html += '<div class="stats-card-body">';
+                config.stats.forEach(stat => {
+                    html += '<div class="stats-card-row">';
+                    html += `<div class="stats-card-label">`;
+                    if (stat.icon) {
+                        html += `<span class="stats-card-icon">${stat.icon}</span>`;
+                    }
+                    html += `<span>${stat.label}</span>`;
+                    html += '</div>';
+                    html += `<div class="stats-card-value">${stat.value}</div>`;
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            // Footer
+            if (config.footer) {
+                html += `<div class="stats-card-footer">${config.footer}</div>`;
+            }
+
+            return html;
+        };
+
         fetch('./steps_data.json?t=' + Date.now()).then(r => {
             return r.json();
         }).then(jsonData => {
@@ -405,8 +509,8 @@
                     tooltipEl.style.top = `${evt.clientY + offset}px`;
                 };
 
-                const showTooltip = (text, evt) => {
-                    tooltipEl.textContent = text;
+                const showTooltip = (html, evt) => {
+                    tooltipEl.innerHTML = html;
                     tooltipEl.style.display = 'block';
                     tooltipEl.setAttribute('aria-hidden', 'false');
                     updateTooltipPosition(evt);
@@ -456,12 +560,29 @@
                     const km = dayData.km;
                     const isMaxDay = dateStr === maxStepDate;
 
-                    // Build tooltip text with steps and km
-                    let tooltipText = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps`;
+                    // Build tooltip using StatsCard component
+                    const statsArray = [];
+
+                    // Add steps stat
+                    statsArray.push({
+                        icon: isMaxDay ? '🏆' : '👟',
+                        label: 'Steps',
+                        value: steps ? fmt(steps) : 'No steps'
+                    });
+
+                    // Add distance stat if available
                     if (km > 0) {
-                        tooltipText += ` (${km} km)`;
+                        statsArray.push({
+                            icon: '📍',
+                            label: 'Distance',
+                            value: `${km} km`
+                        });
                     }
-                    tooltipText += ` on ${formatDate(cellDate)}`;
+
+                    const tooltipHtml = renderStatsCard({
+                        title: isMaxDay ? '🏆 Personal Best!' : formatDate(cellDate),
+                        stats: statsArray
+                    });
 
                     // Highlight max step day with a gold outline (SVG-friendly)
                     if (isMaxDay) {
@@ -505,11 +626,12 @@
                         return;
                     }
 
-                    // Fallback title (some environments still show this)
-                    cell.setAttribute('title', tooltipText);
+                    // Fallback title (some environments still show this) - use plain text
+                    const plainTextTitle = `${isMaxDay ? '🏆 Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
+                    cell.setAttribute('title', plainTextTitle);
 
                     // Custom tooltip handlers
-                    cell.addEventListener('mouseenter', (evt) => showTooltip(tooltipText, evt));
+                    cell.addEventListener('mouseenter', (evt) => showTooltip(tooltipHtml, evt));
                     cell.addEventListener('mousemove', updateTooltipPosition);
                     cell.addEventListener('mouseleave', hideTooltip);
                 });
@@ -524,7 +646,21 @@
                 const streakEl = document.getElementById('current-streak');
 
                 if (totalStepsEl) {
-                    const totalStepsTooltip = `${totalKm.toFixed(1)} km total`;
+                    const totalStepsTooltipHtml = renderStatsCard({
+                        title: 'Total Steps',
+                        stats: [
+                            {
+                                icon: '🚶',
+                                label: 'Steps',
+                                value: fmt(total)
+                            },
+                            {
+                                icon: '📍',
+                                label: 'Distance',
+                                value: `${totalKm.toFixed(1)} km`
+                            }
+                        ]
+                    });
                     totalStepsEl.addEventListener('mouseenter', (evt) => {
                         // Track total steps tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
@@ -534,7 +670,7 @@
                                 event: true
                             });
                         }
-                        showTooltip(totalStepsTooltip, evt);
+                        showTooltip(totalStepsTooltipHtml, evt);
                     });
                     totalStepsEl.addEventListener('mousemove', updateTooltipPosition);
                     totalStepsEl.addEventListener('mouseleave', hideTooltip);
@@ -542,7 +678,21 @@
                 }
 
                 if (dailyAverageEl) {
-                    const dailyAverageTooltip = `${averageKm} km average per day`;
+                    const dailyAverageTooltipHtml = renderStatsCard({
+                        title: 'Daily Average',
+                        stats: [
+                            {
+                                icon: '📊',
+                                label: 'Steps per day',
+                                value: fmt(dailyAverage)
+                            },
+                            {
+                                icon: '📍',
+                                label: 'Distance per day',
+                                value: `${averageKm} km`
+                            }
+                        ]
+                    });
                     dailyAverageEl.addEventListener('mouseenter', (evt) => {
                         // Track daily average tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
@@ -552,7 +702,7 @@
                                 event: true
                             });
                         }
-                        showTooltip(dailyAverageTooltip, evt);
+                        showTooltip(dailyAverageTooltipHtml, evt);
                     });
                     dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
                     dailyAverageEl.addEventListener('mouseleave', hideTooltip);
@@ -569,14 +719,30 @@
                         });
                     };
 
-                    let streakTooltip;
+                    let dateRange;
                     if (streakStartDate === streakEndDate) {
                         // Single day streak
-                        streakTooltip = `${formatStreakDate(streakStartDate)}`;
+                        dateRange = formatStreakDate(streakStartDate);
                     } else {
                         // Multi-day streak
-                        streakTooltip = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
+                        dateRange = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
                     }
+
+                    const streakTooltipHtml = renderStatsCard({
+                        title: '10k+ Streak',
+                        stats: [
+                            {
+                                icon: '🔥',
+                                label: 'Current streak',
+                                value: `${streak} ${streak === 1 ? 'day' : 'days'}`
+                            },
+                            {
+                                icon: '📅',
+                                label: 'Period',
+                                value: dateRange
+                            }
+                        ]
+                    });
 
                     streakEl.addEventListener('mouseenter', (evt) => {
                         // Track streak tooltip interaction
@@ -587,7 +753,7 @@
                                 event: true
                             });
                         }
-                        showTooltip(streakTooltip, evt);
+                        showTooltip(streakTooltipHtml, evt);
                     });
                     streakEl.addEventListener('mousemove', updateTooltipPosition);
                     streakEl.addEventListener('mouseleave', hideTooltip);
