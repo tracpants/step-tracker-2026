@@ -121,24 +121,30 @@ def main():
         if today >= start_date:
             today_reason = "ensure current data"
             if today not in [d[0] for d in dates_to_check]:
-                existing_steps = existing_data.get(today.isoformat(), 0)
                 today_reason = f"ensure current data"
                 dates_to_check.append((today, today_reason))
-            
+
         # Include yesterday only if we haven't run today yet
         if yesterday >= start_date:
             if last_run_date != today and yesterday not in [d[0] for d in dates_to_check]:
-                existing_steps = existing_data.get(yesterday.isoformat(), 0)
                 yesterday_reason = "catch updates"
                 dates_to_check.append((yesterday, yesterday_reason))
             elif last_run_date == today:
                 logging.info(f"Skipping yesterday ({yesterday}) - already checked today")
-        
+
         if dates_to_check:
             logging.info(f"Found {len(dates_to_check)} dates to check:")
             for date, reason in dates_to_check:
-                existing_steps = existing_data.get(date.isoformat(), 0)
-                logging.info(f"  - {date}: existing steps={existing_steps}, reason={reason}")
+                existing_value = existing_data.get(date.isoformat())
+                # Handle both old format (int) and new format (dict)
+                if isinstance(existing_value, dict):
+                    existing_steps = existing_value.get("steps", 0)
+                    existing_km = existing_value.get("km", 0)
+                    logging.info(f"  - {date}: existing steps={existing_steps}, km={existing_km}, reason={reason}")
+                elif isinstance(existing_value, int):
+                    logging.info(f"  - {date}: existing steps={existing_value}, reason={reason}")
+                else:
+                    logging.info(f"  - {date}: existing steps=0, reason={reason}")
         
         missing_dates = [d[0] for d in dates_to_check]
         
@@ -156,37 +162,57 @@ def main():
         logging.info(f"Garmin returned {len(stats)} entries for date range {fetch_start} to {fetch_end}")
         
         # Log the Garmin data for transparency
-        for entry in stats:
+        for i, entry in enumerate(stats):
             date_str = entry['calendarDate']
             steps = entry['totalSteps']
-            logging.info(f"  Garmin data: {date_str} = {steps} steps")
+            # Extract distance in meters and convert to km
+            distance_meters = entry.get('totalDistance') or entry.get('totalDistanceMeters', 0)
+            distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
+            # Log first entry structure to see available fields
+            if i == 0:
+                logging.info(f"  First entry keys: {list(entry.keys())}")
+                logging.info(f"  First entry full data: {entry}")
+            logging.info(f"  Garmin data: {date_str} = {steps} steps, {distance_km} km")
 
         # Update existing data with new stats
         data_points = existing_data.copy()
         new_count = 0
         updated_count = 0
         unchanged_count = 0
-        
+
         for entry in stats:
             date_str = entry['calendarDate']
             steps = entry['totalSteps']
+            # Extract distance in meters and convert to km
+            distance_meters = entry.get('totalDistance') or entry.get('totalDistanceMeters', 0)
+            distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
+
+            new_data = {"steps": steps, "km": distance_km}
+
+            # Handle backward compatibility - old format was integer, new is object
+            existing_value = data_points.get(date_str)
+            if isinstance(existing_value, int):
+                # Convert old format to new format for comparison
+                existing_value = {"steps": existing_value, "km": 0}
 
             if date_str not in data_points or data_points[date_str] is None:
                 # New date or date with None value
-                data_points[date_str] = steps
+                data_points[date_str] = new_data
                 new_count += 1
-                logging.info(f"  NEW: {date_str} = {steps} steps")
-            elif data_points[date_str] != steps:
+                logging.info(f"  NEW: {date_str} = {steps} steps, {distance_km} km")
+            elif existing_value != new_data:
                 # Updated date
-                old_steps = data_points[date_str]
-                change = steps - old_steps
-                data_points[date_str] = steps
+                old_steps = existing_value.get("steps", 0) if isinstance(existing_value, dict) else existing_value
+                old_km = existing_value.get("km", 0) if isinstance(existing_value, dict) else 0
+                step_change = steps - old_steps
+                km_change = distance_km - old_km
+                data_points[date_str] = new_data
                 updated_count += 1
-                logging.info(f"  UPDATED: {date_str} = {steps} steps (was {old_steps}, change: {change:+d})")
+                logging.info(f"  UPDATED: {date_str} = {steps} steps, {distance_km} km (was {old_steps} steps, {old_km} km, changes: {step_change:+d} steps, {km_change:+.2f} km)")
             else:
                 # Unchanged date
                 unchanged_count += 1
-                logging.info(f"  UNCHANGED: {date_str} = {steps} steps (matches local data)")
+                logging.info(f"  UNCHANGED: {date_str} = {steps} steps, {distance_km} km (matches local data)")
 
         total_changes = new_count + updated_count
         logging.info(f"Comparison summary: {new_count} new, {updated_count} updated, {unchanged_count} unchanged")
