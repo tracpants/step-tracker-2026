@@ -394,6 +394,21 @@
                 });
             });
 
+            // Ensure today's date is in chartData even if not in data yet
+            // This ensures current day shows the legend's 0-step color instead of empty/black
+            const todayInTz = dayjs().tz(window.CONFIG?.TIMEZONE || dayjs.tz.guess());
+            const todayStr = todayInTz.format('YYYY-MM-DD');
+            const todayYear = todayInTz.year();
+
+            // Only add today if it's not already in the data and is within 2026
+            if (!data[todayStr] && todayYear === 2026) {
+                chartData.push({
+                    date: todayStr,
+                    value: 0,
+                    km: 0
+                });
+            }
+
             // Find the day with max steps for highlighting
             let maxSteps = 0;
             let maxStepDate = null;
