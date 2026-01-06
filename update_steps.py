@@ -11,15 +11,22 @@ from git import Repo
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Track if we've already logged about missing healthcheck URL
+_healthcheck_skip_logged = False
+
 def send_healthcheck(endpoint="", data=None):
     """Send a healthcheck signal to Healthchecks.io
-    
+
     Args:
         endpoint: Additional endpoint path (e.g., "/start", "/fail", "")
         data: Optional diagnostic data to include in POST request
     """
+    global _healthcheck_skip_logged
     healthcheck_url = os.getenv("HEALTHCHECKS_URL")
     if not healthcheck_url:
+        if not _healthcheck_skip_logged:
+            logging.info("Healthcheck skipped - HEALTHCHECKS_URL not configured")
+            _healthcheck_skip_logged = True
         return  # Skip healthcheck if not configured
     
     try:
