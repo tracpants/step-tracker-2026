@@ -28,7 +28,7 @@ def send_healthcheck(endpoint="", data=None):
             response = requests.post(url, data=data, timeout=10)
         else:
             response = requests.get(url, timeout=10)
-        logging.debug(f"Healthcheck ping sent to {endpoint or 'success'}: {response.status_code}")
+        logging.info(f"Healthcheck ping sent to {endpoint or 'success'}: {response.status_code}")
     except requests.RequestException as e:
         logging.warning(f"Healthcheck ping failed ({endpoint or 'success'}): {e}")
 
