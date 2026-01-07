@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.tox/
+
+# Runtime tracking files
+# .last_run - removed, now using JSON metadata
+
+# Generated data
+# steps_data.json - removed to allow GitHub Pages to serve the data
+
+# Claude AI files
+.claude/
+
+# Playwright MCP files
+.playwright-mcp/
