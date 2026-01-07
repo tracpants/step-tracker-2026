@@ -4,6 +4,17 @@ A step tracking application that displays Garmin Connect data as a GitHub-style 
 
 Live: https://steps.467542981.xyz/
 
+## Quick Start
+
+1. Clone this repository
+2. Copy `.env.example` to `.env` and add your Garmin credentials  
+3. **Set up Cloudflare R2** following [R2_SETUP.md](./R2_SETUP.md) (recommended)
+4. Install dependencies: `uv sync`
+5. Run your first sync: `python update_steps.py`
+6. Open `index.html` in your browser
+
+> 💡 **New**: This project now supports **Cloudflare R2** for data storage! See [README_R2.md](./README_R2.md) for the improved architecture details.
+
 ## Development
 
 ```bash

@@ -3,8 +3,6 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ master ]
-    paths-ignore:
-      - 'steps_data.json'  # Ignore data-only updates (these will be handled directly on gh-pages)
   workflow_dispatch:  # Allow manual deployment
 
 permissions:
@@ -27,14 +25,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get data files from gh-pages branch
+      - name: Create placeholder data file
         run: |
-          # Copy steps_data.json from gh-pages branch if it exists
-          git show gh-pages:steps_data.json > steps_data.json 2>/dev/null || echo '{"metadata":{"lastUpdated":"2026-01-01T00:00:00Z","timezone":"Australia/Sydney"},"data":{}}' > steps_data.json
-          # Verify the file was created
-          ls -la steps_data.json
-          echo "Data file content preview:"
-          head -5 steps_data.json
+          # Create a placeholder data file (real data will be served from R2)
+          echo '{"metadata":{"lastUpdated":"2026-01-01T00:00:00Z","timezone":"Australia/Sydney","note":"Data served from R2"},"data":{}}' > steps_data.json
+          echo "Created placeholder data file for GitHub Pages fallback"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -42,10 +37,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository except Python files and development files
+          # Upload static site files
           path: '.'
-          # Note: This will include index.html, config.js, CNAME, robots.txt, steps_data.json
-          # but exclude .py files, tests/, and other development files
 
       - name: Deploy to GitHub Pages
         id: deployment

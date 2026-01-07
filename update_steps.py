@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 from garminconnect import Garmin
 from dotenv import load_dotenv
 from git import Repo
+import boto3
+from botocore.exceptions import ClientError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -52,166 +54,116 @@ def send_healthcheck_failure(error_message=None):
     data = f"Step tracker error: {error_message}" if error_message else "Step tracker failed"
     send_healthcheck("/fail", data)
 
-def get_current_branch(repo_path):
-    """Get the current git branch name"""
-    try:
-        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
-                              capture_output=True, text=True, check=True, cwd=repo_path)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return None
+# Git functions removed - using R2 for data storage instead
 
-def ensure_clean_git_state(repo_path):
-    """Ensure we're on master branch with a clean state before starting"""
-    repo = Repo(repo_path)
-    
-    # Check if we're in detached HEAD state
-    if repo.head.is_detached:
-        logging.warning("Detached HEAD detected - cleaning up...")
-        # Abort any in-progress operations
-        subprocess.run(['git', 'rebase', '--abort'], capture_output=True, cwd=repo_path)
-        subprocess.run(['git', 'cherry-pick', '--abort'], capture_output=True, cwd=repo_path)
-        subprocess.run(['git', 'merge', '--abort'], capture_output=True, cwd=repo_path)
-        # Checkout master
-        subprocess.run(['git', 'checkout', 'master'], check=True, cwd=repo_path)
-        logging.info("Checked out master branch")
-    
-    # Check if we have any uncommitted changes
-    status_result = subprocess.run(['git', 'status', '--porcelain'], 
-                                 capture_output=True, text=True, cwd=repo_path)
-    if status_result.stdout.strip():
-        logging.info("Uncommitted changes detected - stashing before pull")
-        subprocess.run(['git', 'stash', 'push', '-m', 'Auto-stash before step update'], 
-                      check=True, cwd=repo_path)
-        stashed = True
-    else:
-        stashed = False
-    
-    # Pull latest changes before we start making modifications
+def upload_to_r2(json_path, config_path):
+    """Upload data files to Cloudflare R2"""
     try:
-        subprocess.run(['git', 'pull', '--rebase', 'origin', 'master'], 
-                      capture_output=True, text=True, check=True, cwd=repo_path)
-        logging.info("Pulled latest changes from origin")
-    except subprocess.CalledProcessError as e:
-        # If pull failed and we're now detached, recover
-        if Repo(repo_path).head.is_detached:
-            logging.warning(f"Pull/rebase failed and left detached HEAD: {e.stderr}")
-            subprocess.run(['git', 'rebase', '--abort'], check=True, cwd=repo_path)
-            subprocess.run(['git', 'checkout', 'master'], check=True, cwd=repo_path)
-            subprocess.run(['git', 'reset', '--hard', 'origin/master'], check=True, cwd=repo_path)
-            logging.info("Reset to origin/master after failed rebase")
-        else:
-            logging.warning(f"Pull failed but continuing: {e.stderr}")
-    
-    # Restore stashed changes if we stashed any
-    if stashed:
-        try:
-            subprocess.run(['git', 'stash', 'pop'], check=True, cwd=repo_path)
-            logging.info("Restored stashed changes")
-        except subprocess.CalledProcessError:
-            logging.warning("Failed to restore stashed changes - continuing anyway")
-
-def copy_data_from_gh_pages(repo_path):
-    """Copy data files from gh-pages branch to working directory"""
-    try:
-        # Copy steps_data.json from gh-pages branch if it exists
-        try:
-            subprocess.run(['git', 'show', 'gh-pages:steps_data.json'], 
-                         stdout=open('steps_data.json', 'w'), 
-                         check=True, cwd=repo_path)
-            logging.info("Copied steps_data.json from gh-pages branch")
-        except subprocess.CalledProcessError:
-            logging.info("steps_data.json not found in gh-pages, will create new")
+        # Get R2 configuration from environment
+        r2_endpoint = os.getenv("R2_ENDPOINT_URL")
+        r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
+        r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
         
-        # Copy config.js from gh-pages branch if it exists
-        try:
-            subprocess.run(['git', 'show', 'gh-pages:config.js'], 
-                         stdout=open('config.js', 'w'), 
-                         check=True, cwd=repo_path)
-            logging.info("Copied config.js from gh-pages branch")
-        except subprocess.CalledProcessError:
-            logging.info("config.js not found in gh-pages, will create new")
-            
-    except Exception as e:
-        logging.warning(f"Failed to copy data files from gh-pages: {e}")
-
-def commit_data_to_gh_pages(repo_path, json_path, config_path, today):
-    """Commit data changes to gh-pages branch"""
-    try:
-        # Store current branch
-        current_branch = get_current_branch(repo_path)
-        logging.info(f"Current branch: {current_branch}")
+        if not all([r2_endpoint, r2_access_key, r2_secret_key]):
+            logging.warning("R2 configuration incomplete - skipping upload")
+            logging.info("Set R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables")
+            return False
         
-        # Handle data files before switching branches
-        # We'll temporarily move them aside and restore them after switching
-        temp_data = {}
-        data_files = ['steps_data.json', 'config.js']
-        for file in data_files:
-            if os.path.exists(file):
-                with open(file, 'r') as f:
-                    temp_data[file] = f.read()
-                os.remove(file)
-                logging.info(f"Temporarily moved {file} aside")
+        # Configure S3 client for R2
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint,
+            aws_access_key_id=r2_access_key,
+            aws_secret_access_key=r2_secret_key,
+            region_name='auto'  # R2 uses 'auto' for region
+        )
         
-        # Switch to gh-pages branch
-        logging.info("Switching to gh-pages branch for data update...")
-        subprocess.run(['git', 'checkout', 'gh-pages'], check=True, cwd=repo_path)
+        uploaded_files = []
         
-        # Restore the data files
-        for file, content in temp_data.items():
-            with open(file, 'w') as f:
-                f.write(content)
-            logging.info(f"Restored {file}")
+        # Upload steps_data.json if it exists and has content
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, 'r') as f:
+                    data = json.load(f)
+                    # Only upload if we have actual data (not empty)
+                    if data.get('data') or data.get('metadata'):
+                        s3_client.upload_file(
+                            json_path, 
+                            r2_bucket, 
+                            'steps_data.json',
+                            ExtraArgs={
+                                'ContentType': 'application/json',
+                                'CacheControl': 'max-age=300'  # 5 minute cache
+                            }
+                        )
+                        uploaded_files.append('steps_data.json')
+                        logging.info(f"Uploaded steps_data.json to R2: {len(data.get('data', {}))} days tracked")
+            except (json.JSONDecodeError, ClientError) as e:
+                logging.error(f"Failed to upload steps_data.json: {e}")
         
-        # Pull latest changes from gh-pages
-        try:
-            subprocess.run(['git', 'pull', 'origin', 'gh-pages'], 
-                          capture_output=True, text=True, check=True, cwd=repo_path)
-            logging.info("Pulled latest changes from gh-pages")
-        except subprocess.CalledProcessError as e:
-            logging.warning(f"Pull from gh-pages failed: {e.stderr}")
+        # Upload config.js if it exists
+        if os.path.exists(config_path):
+            try:
+                s3_client.upload_file(
+                    config_path,
+                    r2_bucket,
+                    'config.js',
+                    ExtraArgs={
+                        'ContentType': 'application/javascript',
+                        'CacheControl': 'max-age=3600'  # 1 hour cache
+                    }
+                )
+                uploaded_files.append('config.js')
+                logging.info("Uploaded config.js to R2")
+            except ClientError as e:
+                logging.error(f"Failed to upload config.js: {e}")
         
-        # Copy updated files from master branch working directory
-        # The files should already be updated in the working directory
-        files_to_commit = []
-        
-        # Check if steps_data.json has changes
-        status_result = subprocess.run(['git', 'status', '--porcelain', 'steps_data.json'], 
-                                     capture_output=True, text=True, cwd=repo_path)
-        if status_result.stdout.strip():
-            files_to_commit.append("steps_data.json")
-        
-        # Check if config.js has changes 
-        status_result = subprocess.run(['git', 'status', '--porcelain', 'config.js'], 
-                                     capture_output=True, text=True, cwd=repo_path)
-        if status_result.stdout.strip():
-            files_to_commit.append("config.js")
-        
-        if files_to_commit:
-            logging.info(f"Committing data changes to gh-pages: {', '.join(files_to_commit)}")
-            subprocess.run(['git', 'add'] + files_to_commit, check=True, cwd=repo_path)
-            subprocess.run(['git', 'commit', '-m', f'Update steps: {today}'], check=True, cwd=repo_path)
-            
-            # Push to gh-pages
-            logging.info("Pushing data changes to gh-pages...")
-            subprocess.run(['git', 'push', 'origin', 'gh-pages'], 
-                         capture_output=True, text=True, check=True, cwd=repo_path)
-            logging.info("Data push to gh-pages successful.")
+        if uploaded_files:
+            logging.info(f"Successfully uploaded {len(uploaded_files)} files to R2: {', '.join(uploaded_files)}")
             return True
         else:
-            logging.info("No data changes to commit to gh-pages.")
+            logging.info("No files uploaded to R2")
             return False
             
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to commit to gh-pages: {e}")
-        raise
-    finally:
-        # Always switch back to the original branch
-        if current_branch:
-            logging.info(f"Switching back to {current_branch} branch...")
-            subprocess.run(['git', 'checkout', current_branch], check=True, cwd=repo_path)
-        else:
-            logging.warning("Could not determine original branch, staying on current branch")
+    except Exception as e:
+        logging.error(f"R2 upload failed: {e}")
+        return False
+
+def download_from_r2(json_path):
+    """Download existing data file from R2"""
+    try:
+        r2_endpoint = os.getenv("R2_ENDPOINT_URL")
+        r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
+        r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
+        
+        if not all([r2_endpoint, r2_access_key, r2_secret_key]):
+            logging.info("R2 not configured - starting with empty data")
+            return False
+        
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint,
+            aws_access_key_id=r2_access_key,
+            aws_secret_access_key=r2_secret_key,
+            region_name='auto'
+        )
+        
+        try:
+            s3_client.download_file(r2_bucket, 'steps_data.json', json_path)
+            logging.info("Downloaded existing data from R2")
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                logging.info("No existing data file in R2 - starting fresh")
+            else:
+                logging.warning(f"Failed to download from R2: {e}")
+            return False
+            
+    except Exception as e:
+        logging.warning(f"R2 download failed: {e}")
+        return False
 
 def main():
     load_dotenv()
@@ -228,11 +180,9 @@ def main():
     try:
         # Signal the start of script execution
         send_healthcheck_start()
-        # Ensure clean git state before starting
-        ensure_clean_git_state(repo_path)
         
-        # Copy data files from gh-pages branch to working directory
-        copy_data_from_gh_pages(repo_path)
+        # Download existing data from R2 (if configured)
+        download_from_r2(json_path)
 
         logging.info("Authenticating with Garmin...")
         garmin = Garmin(email, password)
@@ -408,14 +358,36 @@ def main():
             logging.info(f"Database updated. {total_changes} days updated. Total days tracked: {len(data_points)}")
             steps_updated = True
 
-        # Generate config.js with timezone setting only if changed
+        # Generate config.js with timezone and R2 URL settings
         config_path = os.path.join(repo_path, "config.js")
         config_changed = False
+        
+        # Build config object
+        config_obj = {
+            'TIMEZONE': timezone_str
+        }
+        
+        # Add R2 URL if configured
+        r2_public_url = os.getenv("R2_PUBLIC_URL")
+        r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
+        r2_endpoint = os.getenv("R2_ENDPOINT_URL")
+        
+        if r2_public_url:
+            config_obj['R2_DATA_URL'] = f"{r2_public_url.rstrip('/')}/steps_data.json"
+        elif r2_endpoint and r2_bucket:
+            # Use direct R2 endpoint (requires CORS setup)
+            config_obj['R2_DATA_URL'] = f"{r2_endpoint.rstrip('/')}/{r2_bucket}/steps_data.json"
+        
+        # Generate expected config content
+        config_lines = ["window.CONFIG = {"]
+        for key, value in config_obj.items():
+            config_lines.append(f"    {key}: '{value}'")
+        config_lines.append("};")
+        expected_config = "\n".join(config_lines) + "\n"
         
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
                 current_config = f.read()
-                expected_config = f"window.CONFIG = {{\n    TIMEZONE: '{timezone_str}'\n}};\n"
                 if current_config != expected_config:
                     config_changed = True
         else:
@@ -423,22 +395,23 @@ def main():
 
         if config_changed:
             with open(config_path, "w") as f:
-                f.write(f"window.CONFIG = {{\n")
-                f.write(f"    TIMEZONE: '{timezone_str}'\n")
-                f.write(f"}};\n")
+                f.write(expected_config)
             logging.info(f"Config file updated with timezone: {timezone_str}")
+            if 'R2_DATA_URL' in config_obj:
+                logging.info(f"Config file updated with R2 URL: {config_obj['R2_DATA_URL']}")
 
-        # Only commit data changes if we have actual changes
-        # Data changes (steps_data.json, config.js) go to gh-pages branch
-        # Code changes would go to master branch (but we don't expect any in this script)
-        
+        # Upload data changes to R2 instead of git commits
         data_changes = steps_updated or config_changed
         
         if data_changes:
-            # Use the new function to commit data to gh-pages branch
-            commit_data_to_gh_pages(repo_path, json_path, config_path, today)
+            # Upload to R2
+            upload_success = upload_to_r2(json_path, config_path)
+            if upload_success:
+                logging.info("Data successfully uploaded to R2")
+            else:
+                logging.warning("R2 upload failed or skipped - check R2 configuration")
         else:
-            logging.info("No data changes to commit.")
+            logging.info("No data changes to upload.")
         
         # Note: Last run tracking is now handled by the JSON metadata's lastUpdated field
         

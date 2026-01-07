@@ -404,7 +404,9 @@
             return html;
         };
 
-        fetch('./steps_data.json?t=' + Date.now()).then(r => {
+        // Determine data source - R2 or local
+        const dataUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
+        fetch(dataUrl + '?t=' + Date.now()).then(r => {
             return r.json();
         }).then(jsonData => {
             // Handle new structure with metadata, or legacy flat structure
