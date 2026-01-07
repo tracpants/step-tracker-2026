@@ -23,7 +23,7 @@ htmlcov/
 # .last_run - removed, now using JSON metadata
 
 # Generated data
-# steps_data.json - removed to allow GitHub Pages to serve the data
+steps_data.json  # Lives in gh-pages branch only, copied temporarily during updates
 
 # Claude AI files
 .claude/
