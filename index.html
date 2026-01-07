@@ -29,8 +29,8 @@
             async src="//gc.zgo.at/count.js"></script>
     <script src="./config.js"></script>
     <style>
-        body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; text-align: center; }
+        /* ========================================================================\n           BASE LAYOUT & TYPOGRAPHY\n           ======================================================================== */\n        body {\n            font-family: system-ui, sans-serif;\n            background: #0d1117;\n            color: #c9d1d9;\n            margin: 0;\n            padding: 20px;\n        }
+        \n        .container {\n            max-width: 800px;\n            margin: 0 auto;\n            text-align: center;\n        }
         .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
         .stats.loaded { opacity: 1; }
         .stat { font-size: 24px; font-weight: bold; }
@@ -300,11 +300,20 @@
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
 
     <script>
+        // ============================================================================
+        // INITIALIZATION & UTILITIES
+        // ============================================================================
         dayjs.extend(dayjs_plugin_utc);
         dayjs.extend(dayjs_plugin_timezone);
 
-        const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         const cal = new CalHeatmap();
+        
+        /**
+         * Format number with commas for readability
+         * @param {number} n - Number to format
+         * @returns {string} Formatted number string
+         */
+        const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
         /**
          * Render a Lucide icon by name
@@ -313,6 +322,20 @@
          */
         const renderIcon = (iconName) => {
             return `<i data-lucide="${iconName}"></i>`;
+        };
+        
+        /**
+         * Safe error handling wrapper for async operations
+         * @param {Function} fn - Function to execute
+         * @param {string} context - Context for error logging
+         */
+        const safeExecute = async (fn, context = 'operation') => {
+            try {
+                return await fn();
+            } catch (error) {
+                console.error(`Error in ${context}:`, error);
+                return null;
+            }
         };
 
         /**
