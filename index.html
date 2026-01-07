@@ -419,6 +419,17 @@
                 }
             });
 
+            // Calculate monthly totals for tooltips
+            const monthlyTotals = {};
+            chartData.forEach(item => {
+                const monthKey = item.date.substring(0, 7); // Get YYYY-MM
+                if (!monthlyTotals[monthKey]) {
+                    monthlyTotals[monthKey] = { steps: 0, km: 0 };
+                }
+                monthlyTotals[monthKey].steps += item.value;
+                monthlyTotals[monthKey].km += item.km;
+            });
+
             let total = 0, totalKm = 0, streak = 0, active = true;
             let streakStartDate = null, streakEndDate = null;
             let today = new Date(); today.setHours(0,0,0,0);
@@ -701,6 +712,57 @@
                 // If you leave the SVG entirely, hide tooltip
                 const svg = document.querySelector('#cal-heatmap svg');
                 if (svg) svg.addEventListener('mouseleave', hideTooltip);
+
+                // Add tooltips for month labels
+                const monthLabels = document.querySelectorAll('#cal-heatmap .ch-domain-text');
+                console.log('Found month labels:', monthLabels.length);
+
+                monthLabels.forEach((label, index) => {
+                    // Calculate which month this label represents (0-indexed, starting from January 2026)
+                    const monthIndex = index; // 0 = Jan, 1 = Feb, etc.
+                    const year = 2026;
+                    const monthKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`; // Format: YYYY-MM
+
+                    // Check if this month has data
+                    const monthData = monthlyTotals[monthKey];
+
+                    if (monthData && monthData.steps > 0) {
+                        // This month has steps data, add tooltip
+                        const monthName = new Date(year, monthIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+                        const monthTooltipHtml = renderStatsCard({
+                            title: monthName,
+                            titleIcon: 'calendar',
+                            stats: [
+                                {
+                                    icon: 'footprints',
+                                    label: 'Total Steps',
+                                    value: fmt(monthData.steps)
+                                },
+                                {
+                                    icon: 'map-pin',
+                                    label: 'Total Distance',
+                                    value: `${monthData.km.toFixed(1)} km`
+                                }
+                            ]
+                        });
+
+                        label.addEventListener('mouseenter', (evt) => {
+                            // Track month tooltip interaction
+                            if (window.goatcounter && window.goatcounter.count) {
+                                window.goatcounter.count({
+                                    path: 'month-tooltip-viewed',
+                                    title: `Month Tooltip Viewed: ${monthName}`,
+                                    event: true
+                                });
+                            }
+                            showTooltip(monthTooltipHtml, evt);
+                        });
+                        label.addEventListener('mousemove', updateTooltipPosition);
+                        label.addEventListener('mouseleave', hideTooltip);
+                        label.style.cursor = 'help';
+                    }
+                });
 
                 // Add tooltips for Total Steps and Daily Average stats
                 const totalStepsEl = document.getElementById('total-steps');
