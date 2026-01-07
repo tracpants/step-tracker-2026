@@ -111,6 +111,67 @@ def ensure_clean_git_state(repo_path):
         except subprocess.CalledProcessError:
             logging.warning("Failed to restore stashed changes - continuing anyway")
 
+def commit_data_to_gh_pages(repo_path, json_path, config_path, today):
+    """Commit data changes to gh-pages branch"""
+    try:
+        # Store current branch
+        current_branch = get_current_branch(repo_path)
+        logging.info(f"Current branch: {current_branch}")
+        
+        # Switch to gh-pages branch
+        logging.info("Switching to gh-pages branch for data update...")
+        subprocess.run(['git', 'checkout', 'gh-pages'], check=True, cwd=repo_path)
+        
+        # Pull latest changes from gh-pages
+        try:
+            subprocess.run(['git', 'pull', 'origin', 'gh-pages'], 
+                          capture_output=True, text=True, check=True, cwd=repo_path)
+            logging.info("Pulled latest changes from gh-pages")
+        except subprocess.CalledProcessError as e:
+            logging.warning(f"Pull from gh-pages failed: {e.stderr}")
+        
+        # Copy updated files from master branch working directory
+        # The files should already be updated in the working directory
+        files_to_commit = []
+        
+        # Check if steps_data.json has changes
+        status_result = subprocess.run(['git', 'status', '--porcelain', 'steps_data.json'], 
+                                     capture_output=True, text=True, cwd=repo_path)
+        if status_result.stdout.strip():
+            files_to_commit.append("steps_data.json")
+        
+        # Check if config.js has changes 
+        status_result = subprocess.run(['git', 'status', '--porcelain', 'config.js'], 
+                                     capture_output=True, text=True, cwd=repo_path)
+        if status_result.stdout.strip():
+            files_to_commit.append("config.js")
+        
+        if files_to_commit:
+            logging.info(f"Committing data changes to gh-pages: {', '.join(files_to_commit)}")
+            subprocess.run(['git', 'add'] + files_to_commit, check=True, cwd=repo_path)
+            subprocess.run(['git', 'commit', '-m', f'Update steps: {today}'], check=True, cwd=repo_path)
+            
+            # Push to gh-pages
+            logging.info("Pushing data changes to gh-pages...")
+            subprocess.run(['git', 'push', 'origin', 'gh-pages'], 
+                         capture_output=True, text=True, check=True, cwd=repo_path)
+            logging.info("Data push to gh-pages successful.")
+            return True
+        else:
+            logging.info("No data changes to commit to gh-pages.")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to commit to gh-pages: {e}")
+        raise
+    finally:
+        # Always switch back to the original branch
+        if current_branch:
+            logging.info(f"Switching back to {current_branch} branch...")
+            subprocess.run(['git', 'checkout', current_branch], check=True, cwd=repo_path)
+        else:
+            logging.warning("Could not determine original branch, staying on current branch")
+
 def main():
     load_dotenv()
     email = os.getenv("GARMIN_EMAIL")
@@ -323,40 +384,17 @@ def main():
                 f.write(f"}};\n")
             logging.info(f"Config file updated with timezone: {timezone_str}")
 
-        # Only commit and push if we have actual changes
-        repo = Repo(repo_path)
-        files_to_add = []
+        # Only commit data changes if we have actual changes
+        # Data changes (steps_data.json, config.js) go to gh-pages branch
+        # Code changes would go to master branch (but we don't expect any in this script)
         
-        # Always check if steps_data.json is modified and add it if needed
-        if steps_updated or repo.is_dirty(path="steps_data.json"):
-            files_to_add.append("steps_data.json")
+        data_changes = steps_updated or config_changed
         
-        # Only add config.js if it changed
-        if config_changed:
-            files_to_add.append("config.js")
-        
-        if files_to_add:
-            logging.info(f"Changes detected in: {', '.join(files_to_add)}. Committing...")
-            repo.index.add(files_to_add)
-            repo.index.commit(f"Update steps: {today} [skip ci]")
-            
-            # Only push if we're on master branch
-            current_branch = get_current_branch(repo_path)
-            if current_branch == "master":
-                logging.info("On master branch - pushing changes...")
-                try:
-                    subprocess.run(['git', 'push'], 
-                                 capture_output=True, text=True, check=True, cwd=repo_path)
-                    logging.info("Push successful.")
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"Push failed: {e.stderr}")
-                    # Don't try to recover here - we already synced at the start
-                    # This indicates a real problem that needs manual intervention
-                    raise
-            else:
-                logging.warning(f"Not on master branch (current: {current_branch}) - skipping push. Changes committed locally.")
+        if data_changes:
+            # Use the new function to commit data to gh-pages branch
+            commit_data_to_gh_pages(repo_path, json_path, config_path, today)
         else:
-            logging.info("No changes to commit.")
+            logging.info("No data changes to commit.")
         
         # Note: Last run tracking is now handled by the JSON metadata's lastUpdated field
         
