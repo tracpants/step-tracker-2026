@@ -142,9 +142,26 @@ def commit_data_to_gh_pages(repo_path, json_path, config_path, today):
         current_branch = get_current_branch(repo_path)
         logging.info(f"Current branch: {current_branch}")
         
+        # Handle data files before switching branches
+        # We'll temporarily move them aside and restore them after switching
+        temp_data = {}
+        data_files = ['steps_data.json', 'config.js']
+        for file in data_files:
+            if os.path.exists(file):
+                with open(file, 'r') as f:
+                    temp_data[file] = f.read()
+                os.remove(file)
+                logging.info(f"Temporarily moved {file} aside")
+        
         # Switch to gh-pages branch
         logging.info("Switching to gh-pages branch for data update...")
         subprocess.run(['git', 'checkout', 'gh-pages'], check=True, cwd=repo_path)
+        
+        # Restore the data files
+        for file, content in temp_data.items():
+            with open(file, 'w') as f:
+                f.write(content)
+            logging.info(f"Restored {file}")
         
         # Pull latest changes from gh-pages
         try:
