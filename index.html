@@ -29,8 +29,22 @@
             async src="//gc.zgo.at/count.js"></script>
     <script src="./config.js"></script>
     <style>
-        /* ========================================================================\n           BASE LAYOUT & TYPOGRAPHY\n           ======================================================================== */\n        body {\n            font-family: system-ui, sans-serif;\n            background: #0d1117;\n            color: #c9d1d9;\n            margin: 0;\n            padding: 20px;\n        }
-        \n        .container {\n            max-width: 800px;\n            margin: 0 auto;\n            text-align: center;\n        }
+        /* ========================================================================
+           BASE LAYOUT & TYPOGRAPHY
+           ======================================================================== */
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
         .stats { display: flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
         .stats.loaded { opacity: 1; }
         .stat { font-size: 24px; font-weight: bold; }
