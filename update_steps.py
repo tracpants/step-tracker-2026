@@ -111,6 +111,30 @@ def ensure_clean_git_state(repo_path):
         except subprocess.CalledProcessError:
             logging.warning("Failed to restore stashed changes - continuing anyway")
 
+def copy_data_from_gh_pages(repo_path):
+    """Copy data files from gh-pages branch to working directory"""
+    try:
+        # Copy steps_data.json from gh-pages branch if it exists
+        try:
+            subprocess.run(['git', 'show', 'gh-pages:steps_data.json'], 
+                         stdout=open('steps_data.json', 'w'), 
+                         check=True, cwd=repo_path)
+            logging.info("Copied steps_data.json from gh-pages branch")
+        except subprocess.CalledProcessError:
+            logging.info("steps_data.json not found in gh-pages, will create new")
+        
+        # Copy config.js from gh-pages branch if it exists
+        try:
+            subprocess.run(['git', 'show', 'gh-pages:config.js'], 
+                         stdout=open('config.js', 'w'), 
+                         check=True, cwd=repo_path)
+            logging.info("Copied config.js from gh-pages branch")
+        except subprocess.CalledProcessError:
+            logging.info("config.js not found in gh-pages, will create new")
+            
+    except Exception as e:
+        logging.warning(f"Failed to copy data files from gh-pages: {e}")
+
 def commit_data_to_gh_pages(repo_path, json_path, config_path, today):
     """Commit data changes to gh-pages branch"""
     try:
@@ -189,6 +213,9 @@ def main():
         send_healthcheck_start()
         # Ensure clean git state before starting
         ensure_clean_git_state(repo_path)
+        
+        # Copy data files from gh-pages branch to working directory
+        copy_data_from_gh_pages(repo_path)
 
         logging.info("Authenticating with Garmin...")
         garmin = Garmin(email, password)
