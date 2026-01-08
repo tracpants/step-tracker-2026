@@ -28,10 +28,25 @@ This guide walks you through setting up Cloudflare R2 storage for your step trac
    - Choose a region close to your location for best performance
    - Click **"Create bucket"**
 
-3. **Configure Public Access (Optional)**
+3. **Configure Public Access and CORS**
    - In your bucket settings, you can set up a custom domain
    - For public access, enable **"Public URL access"**
-   - Note: The step tracker works fine with private buckets using API access
+   - **Configure CORS for website access:**
+     - Go to your bucket settings
+     - Click on **"CORS"** tab
+     - Add the following CORS policy:
+     ```json
+     [
+       {
+         "AllowedOrigins": ["*"],
+         "AllowedMethods": ["GET"],
+         "AllowedHeaders": ["*"],
+         "ExposeHeaders": [],
+         "MaxAgeSeconds": 3600
+       }
+     ]
+     ```
+   - Note: For production, replace `"*"` with your specific domain(s)
 
 ## Step 2: Create R2 API Token
 

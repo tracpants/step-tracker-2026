@@ -404,11 +404,21 @@
             return html;
         };
 
-        // Determine data source - R2 or local
-        const dataUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
-        fetch(dataUrl + '?t=' + Date.now()).then(r => {
-            return r.json();
-        }).then(jsonData => {
+        // Determine data source - R2 or local with fallback
+        const primaryUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
+        const fallbackUrl = './steps_data.json';
+        
+        const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => r.json());
+        
+        // Try R2 first, fall back to local if it fails
+        const dataPromise = primaryUrl !== fallbackUrl ? 
+            fetchData(primaryUrl).catch(err => {
+                console.log('R2 fetch failed, falling back to local data:', err.message);
+                return fetchData(fallbackUrl);
+            }) :
+            fetchData(primaryUrl);
+            
+        dataPromise.then(jsonData => {
             // Handle new structure with metadata, or legacy flat structure
             let data, lastUpdated;
             if (jsonData && typeof jsonData === 'object' && 'data' in jsonData && 'metadata' in jsonData) {
