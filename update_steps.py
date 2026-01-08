@@ -181,6 +181,9 @@ def main():
         # Signal the start of script execution
         send_healthcheck_start()
         
+        # Set up file paths
+        json_path = os.path.join(repo_path, "steps_data.json")
+        
         # Download existing data from R2 (if configured)
         download_from_r2(json_path)
 
@@ -195,7 +198,6 @@ def main():
         logging.info(f"Current date in {timezone_str}: {today} (UTC would be: {datetime.date.today()})")
 
         start_date = datetime.date(2026, 1, 1)
-        json_path = os.path.join(repo_path, "steps_data.json")
         
         # Read existing data to determine what dates we need to fetch
         existing_data = {}

@@ -15,7 +15,8 @@ from update_steps import (
     send_healthcheck_start,
     send_healthcheck_success,
     send_healthcheck_failure,
-    get_current_branch,
+    upload_to_r2,
+    download_from_r2,
 )
 
 
@@ -82,43 +83,62 @@ class TestHealthcheckFunctions:
         mock_send.assert_called_once_with('/fail', 'Step tracker failed')
 
 
-class TestGitFunctions:
-    def test_get_current_branch_success(self):
-        with patch('subprocess.run') as mock_run:
-            mock_result = MagicMock()
-            mock_result.stdout = 'master\n'
-            mock_result.returncode = 0
-            mock_run.return_value = mock_result
+class TestR2Functions:
+    def test_upload_to_r2_no_config(self):
+        """Test R2 upload when no configuration is provided"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            f.write('{"test": "data"}')
+            f.flush()
             
-            result = get_current_branch('/tmp/test-repo')
+            # Test without R2 configuration
+            result = upload_to_r2(f.name, f.name)
             
-            assert result == 'master'
-            mock_run.assert_called_once_with(
-                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd='/tmp/test-repo'
-            )
-
-    def test_get_current_branch_failure(self):
-        with patch('subprocess.run') as mock_run:
-            mock_run.side_effect = subprocess.CalledProcessError(1, 'git')
+            assert result is False
+            os.unlink(f.name)
+    
+    def test_download_from_r2_no_config(self):
+        """Test R2 download when no configuration is provided"""
+        result = download_from_r2('test.json')
+        assert result is False
+    
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key',
+        'R2_BUCKET_NAME': 'test-bucket'
+    })
+    @patch('update_steps.boto3.client')
+    def test_upload_to_r2_success(self, mock_boto_client):
+        """Test successful R2 upload"""
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            f.write('{"data": {"2026-01-01": {"steps": 5000, "km": 3.2}}}')
+            f.flush()
             
-            result = get_current_branch('/tmp/test-repo')
+            result = upload_to_r2(f.name, f.name)
             
-            assert result is None
-
-    def test_get_current_branch_feature_branch(self):
-        with patch('subprocess.run') as mock_run:
-            mock_result = MagicMock()
-            mock_result.stdout = 'feature/new-feature\n'
-            mock_result.returncode = 0
-            mock_run.return_value = mock_result
-            
-            result = get_current_branch('/tmp/test-repo')
-            
-            assert result == 'feature/new-feature'
+            assert result is True
+            assert mock_s3_client.upload_file.call_count == 2  # json and js files
+            os.unlink(f.name)
+    
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',  
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key',
+        'R2_BUCKET_NAME': 'test-bucket'
+    })
+    @patch('update_steps.boto3.client')
+    def test_download_from_r2_success(self, mock_boto_client):
+        """Test successful R2 download"""
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        result = download_from_r2('test.json')
+        
+        assert result is True
+        mock_s3_client.download_file.assert_called_once_with('test-bucket', 'steps_data.json', 'test.json')
 
 
 class TestDataProcessing:

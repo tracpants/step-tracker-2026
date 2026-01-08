@@ -32,3 +32,8 @@ filterwarnings = [
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
 ]
+
+[dependency-groups]
+test = [
+    "pytest>=9.0.2",
+]
