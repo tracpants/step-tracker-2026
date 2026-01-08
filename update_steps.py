@@ -382,8 +382,10 @@ def main():
         
         # Generate expected config content
         config_lines = ["window.CONFIG = {"]
-        for key, value in config_obj.items():
-            config_lines.append(f"    {key}: '{value}'")
+        config_items = list(config_obj.items())
+        for i, (key, value) in enumerate(config_items):
+            comma = "," if i < len(config_items) - 1 else ""
+            config_lines.append(f"    {key}: '{value}'{comma}")
         config_lines.append("};")
         expected_config = "\n".join(config_lines) + "\n"
         
