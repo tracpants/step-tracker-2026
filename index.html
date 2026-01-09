@@ -473,10 +473,16 @@
             chartData.forEach(item => {
                 const monthKey = item.date.substring(0, 7); // Get YYYY-MM
                 if (!monthlyTotals[monthKey]) {
-                    monthlyTotals[monthKey] = { steps: 0, km: 0 };
+                    monthlyTotals[monthKey] = { steps: 0, km: 0, maxDay: null, maxSteps: 0 };
                 }
                 monthlyTotals[monthKey].steps += item.value;
                 monthlyTotals[monthKey].km += item.km;
+
+                // Track the day with the most steps
+                if (item.value > monthlyTotals[monthKey].maxSteps) {
+                    monthlyTotals[monthKey].maxSteps = item.value;
+                    monthlyTotals[monthKey].maxDay = item.date;
+                }
             });
 
             let total = 0, totalKm = 0, streak = 0, active = true;
@@ -779,21 +785,35 @@
                         // This month has steps data, add tooltip
                         const monthName = new Date(year, monthIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+                        // Build stats array for the month
+                        const monthStats = [
+                            {
+                                icon: 'footprints',
+                                label: 'Total Steps',
+                                value: fmt(monthData.steps)
+                            },
+                            {
+                                icon: 'map-pin',
+                                label: 'Total Distance',
+                                value: `${monthData.km.toFixed(1)} km`
+                            }
+                        ];
+
+                        // Add day with most steps if available
+                        if (monthData.maxDay && monthData.maxSteps > 0) {
+                            const maxDayDate = new Date(monthData.maxDay + 'T00:00:00');
+                            const maxDayFormatted = maxDayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            monthStats.push({
+                                icon: 'trophy',
+                                label: 'Best Day',
+                                value: `${maxDayFormatted} (${fmt(monthData.maxSteps)} steps)`
+                            });
+                        }
+
                         const monthTooltipHtml = renderStatsCard({
                             title: monthName,
                             titleIcon: 'calendar',
-                            stats: [
-                                {
-                                    icon: 'footprints',
-                                    label: 'Total Steps',
-                                    value: fmt(monthData.steps)
-                                },
-                                {
-                                    icon: 'map-pin',
-                                    label: 'Total Distance',
-                                    value: `${monthData.km.toFixed(1)} km`
-                                }
-                            ]
+                            stats: monthStats
                         });
 
                         label.addEventListener('mouseenter', (evt) => {
