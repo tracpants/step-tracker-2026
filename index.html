@@ -255,6 +255,65 @@
         .last-updated.loaded {
             opacity: 1;
         }
+
+        /* ========================================================================
+           RESPONSIVE MOBILE / PORTRAIT STYLES
+           ======================================================================== */
+
+        /* Wrapper for horizontal scroll on mobile */
+        .heatmap-wrapper {
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+            margin: 17px 0;
+        }
+
+        /* Mobile portrait optimization */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px 10px;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            /* Stack stats vertically on narrow screens */
+            .stats {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            /* Ensure heatmap container scrolls horizontally */
+            .heatmap-wrapper {
+                width: 100%;
+                margin: 17px -10px; /* extend to edges */
+                padding: 0 10px;
+            }
+
+            #cal-heatmap {
+                margin: 0 auto;
+            }
+        }
+
+        /* Extra small screens - reduce cell size slightly */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px 5px;
+            }
+
+            .stats {
+                gap: 15px;
+            }
+
+            .stat {
+                font-size: 20px;
+            }
+
+            .label {
+                font-size: 11px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -308,7 +367,9 @@
             </div>
         </div>
 
-        <div id="cal-heatmap"></div>
+        <div class="heatmap-wrapper">
+            <div id="cal-heatmap"></div>
+        </div>
 
         <div class="legend">
             <span class="legend-text">0</span>
