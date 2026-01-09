@@ -330,7 +330,7 @@
             </div>
             <div>
                 <div class="stat" id="current-streak">-</div>
-                <div class="label">10k+ Streak</div>
+                <div class="label" id="goal-label">Year: - of days at 10k+</div>
             </div>
         </div>
 
@@ -561,6 +561,7 @@
 
             let total = 0, totalKm = 0, streak = 0, active = true;
             let streakStartDate = null, streakEndDate = null;
+            let daysAt10kPlus = 0; // Track total days with 10k+ steps
             let today = new Date(); today.setHours(0,0,0,0);
             let dayCount = Object.keys(data).length;
 
@@ -570,6 +571,11 @@
                 let km = typeof entry === 'object' ? entry.km : 0;
                 total += steps;
                 totalKm += km;
+
+                // Count all days with 10k+ steps for YTD percentage
+                if (steps >= 10000) {
+                    daysAt10kPlus++;
+                }
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
@@ -585,10 +591,12 @@
 
             const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
             const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
+            const percentageAt10kPlus = dayCount > 0 ? Math.round((daysAt10kPlus / dayCount) * 100) : 0;
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
-            document.getElementById("current-streak").innerText = streak;
+            document.getElementById("current-streak").innerText = `${percentageAt10kPlus}%`;
+            document.getElementById("goal-label").innerText = `Year: ${percentageAt10kPlus}% of days at 10k+`;
 
             // Trigger fade-in animation for stats
             document.querySelector('.stats').classList.add('loaded');
@@ -976,47 +984,34 @@
                     dailyAverageEl.style.cursor = 'help';
                 }
 
-                if (streakEl && streak > 0 && streakStartDate && streakEndDate) {
-                    const formatStreakDate = (dateStr) => {
-                        const date = new Date(dateStr + 'T00:00:00');
-                        return date.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                        });
-                    };
-
-                    let dateRange;
-                    if (streakStartDate === streakEndDate) {
-                        // Single day streak
-                        dateRange = formatStreakDate(streakStartDate);
-                    } else {
-                        // Multi-day streak
-                        dateRange = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
-                    }
-
+                if (streakEl && percentageAt10kPlus >= 0) {
                     const streakTooltipHtml = renderStatsCard({
-                        title: '10k+ Streak',
+                        title: '10k+ Goal Progress',
                         stats: [
+                            {
+                                icon: 'target',
+                                label: 'YTD percentage',
+                                value: `${percentageAt10kPlus}%`
+                            },
+                            {
+                                icon: 'calendar-check',
+                                label: 'Days at 10k+',
+                                value: `${daysAt10kPlus} of ${dayCount} ${dayCount === 1 ? 'day' : 'days'}`
+                            },
                             {
                                 icon: 'flame',
                                 label: 'Current streak',
                                 value: `${streak} ${streak === 1 ? 'day' : 'days'}`
-                            },
-                            {
-                                icon: 'calendar',
-                                label: 'Period',
-                                value: dateRange
                             }
                         ]
                     });
 
                     streakEl.addEventListener('mouseenter', (evt) => {
-                        // Track streak tooltip interaction
+                        // Track goal percentage tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
                             window.goatcounter.count({
-                                path: 'stat-tooltip-streak',
-                                title: `Streak Tooltip Viewed: ${streak} day streak`,
+                                path: 'stat-tooltip-goal',
+                                title: `Goal Tooltip Viewed: ${percentageAt10kPlus}% at 10k+`,
                                 event: true
                             });
                         }
