@@ -86,6 +86,24 @@
             vector-effect: non-scaling-stroke;
         }
 
+        /* Visual tap feedback for mobile interactions */
+        #cal-heatmap rect.ch-subdomain-bg {
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+
+        /* Active state for touch devices - provides immediate visual feedback */
+        #cal-heatmap rect.ch-subdomain-bg:active {
+            opacity: 0.7;
+        }
+
+        /* Hover state for desktop (doesn't interfere with mobile) */
+        @media (hover: hover) and (pointer: fine) {
+            #cal-heatmap rect.ch-subdomain-bg:hover {
+                opacity: 0.85;
+            }
+        }
+
         /* Custom tooltip (more reliable than SVG <title> tooltips across browsers) */
         #step-tooltip {
             position: fixed;
@@ -257,6 +275,28 @@
             animation: pulse 1.5s ease-in-out infinite;
         }
 
+        /* Responsive skeleton cells to match heatmap sizing */
+        @media (max-width: 768px) {
+            .skeleton-grid {
+                grid-template-columns: repeat(7, 15px);
+            }
+            .skeleton-cell {
+                width: 15px;
+                height: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .skeleton-grid {
+                grid-template-columns: repeat(7, 18px);
+                gap: 5px;
+            }
+            .skeleton-cell {
+                width: 18px;
+                height: 18px;
+            }
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 0.4; }
             50% { opacity: 0.7; }
@@ -411,7 +451,28 @@
         dayjs.extend(dayjs_plugin_timezone);
 
         const cal = new CalHeatmap();
-        
+
+        /**
+         * Get responsive cell dimensions based on screen width
+         * @returns {Object} Cell configuration with width, height, and gutter
+         */
+        const getResponsiveCellConfig = () => {
+            const width = window.innerWidth;
+
+            // Mobile phones (≤480px): Larger cells for easier tapping
+            if (width <= 480) {
+                return { width: 18, height: 18, gutter: 5 };
+            }
+            // Tablets (≤768px): Medium cells
+            else if (width <= 768) {
+                return { width: 15, height: 15, gutter: 4 };
+            }
+            // Desktop: Standard cells
+            else {
+                return { width: 11, height: 11, gutter: 4 };
+            }
+        };
+
         /**
          * Format number with commas for readability
          * @param {number} n - Number to format
@@ -633,6 +694,9 @@
                 document.getElementById("last-updated").innerText = "Last updated: " + timeAgo;
             }
 
+            // Get responsive cell configuration based on screen size
+            const cellConfig = getResponsiveCellConfig();
+
             cal.paint(
                 {
                     data: {
@@ -651,10 +715,17 @@
                     },
                     domain: {
                         type: 'month',
-                        gutter: 4,
+                        gutter: cellConfig.gutter,
                         label: { text: 'MMM', textAlign: 'middle', position: 'top' },
                     },
-                    subDomain: { type: 'ghDay', radius: 2, width: 11, height: 11, gutter: 4, empty: '#000000' },
+                    subDomain: {
+                        type: 'ghDay',
+                        radius: 2,
+                        width: cellConfig.width,
+                        height: cellConfig.height,
+                        gutter: cellConfig.gutter,
+                        empty: '#000000'
+                    },
                     itemSelector: '#cal-heatmap',
                 }
             );
