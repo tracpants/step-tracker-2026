@@ -1170,23 +1170,19 @@
 
                 const goalPercentageEl = document.getElementById('goal-percentage');
                 if (goalPercentageEl) {
+                    const successRate = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
                     const goalPercentageTooltipHtml = renderStatsCard({
                         title: 'Year Progress',
                         stats: [
                             {
-                                icon: 'check-circle',
-                                label: 'Days with 10k+',
-                                value: `${daysWithGoal} days`
-                            },
-                            {
                                 icon: 'calendar',
-                                label: 'Total Days in Year',
-                                value: `365 days`
+                                label: 'Year Progress',
+                                value: `${goalPercentage}%`
                             },
                             {
                                 icon: 'percent',
-                                label: 'Year Progress',
-                                value: `${goalPercentage}%`
+                                label: 'Success Rate',
+                                value: `${successRate}%`
                             }
                         ]
                     });
