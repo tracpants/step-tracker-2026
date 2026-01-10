@@ -334,10 +334,12 @@
                 max-width: 100%;
             }
 
-            /* Stack stats vertically on narrow screens */
+            /* 2x2 grid layout on narrow screens */
             .stats {
-                flex-direction: column;
-                gap: 20px;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                max-width: 400px;
             }
 
             /* Ensure heatmap container scrolls horizontally */
@@ -387,6 +389,10 @@
             <div>
                 <div class="stat" id="current-streak">-</div>
                 <div class="label">10k+ Streak</div>
+            </div>
+            <div>
+                <div class="stat" id="goal-percentage">-</div>
+                <div class="label">Goal Progress</div>
             </div>
         </div>
 
@@ -640,6 +646,7 @@
             let streakStartDate = null, streakEndDate = null;
             let today = new Date(); today.setHours(0,0,0,0);
             let dayCount = Object.keys(data).length;
+            let daysWithGoal = 0; // Count days that hit 10k+
 
             Object.keys(data).sort().reverse().forEach(dateStr => {
                 const entry = data[dateStr];
@@ -647,6 +654,11 @@
                 let km = typeof entry === 'object' ? entry.km : 0;
                 total += steps;
                 totalKm += km;
+
+                // Count days with 10k+ steps
+                if (steps >= 10000) {
+                    daysWithGoal++;
+                }
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
@@ -663,9 +675,15 @@
             const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
             const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
 
+            // Calculate day of year (1-366)
+            const yearStart = new Date(2026, 0, 1);
+            const dayOfYear = Math.ceil((today - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+            const goalPercentage = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
+
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
+            document.getElementById("goal-percentage").innerText = goalPercentage + "%";
 
             // Trigger fade-in animation for stats
             document.querySelector('.stats').classList.add('loaded');
@@ -1148,6 +1166,44 @@
                     streakEl.addEventListener('mousemove', updateTooltipPosition);
                     streakEl.addEventListener('mouseleave', hideTooltip);
                     streakEl.style.cursor = 'help';
+                }
+
+                const goalPercentageEl = document.getElementById('goal-percentage');
+                if (goalPercentageEl) {
+                    const goalPercentageTooltipHtml = renderStatsCard({
+                        title: 'Goal Progress',
+                        stats: [
+                            {
+                                icon: 'check-circle',
+                                label: 'Days with 10k+',
+                                value: `${daysWithGoal} days`
+                            },
+                            {
+                                icon: 'calendar',
+                                label: 'Day of Year',
+                                value: `Day ${dayOfYear}`
+                            },
+                            {
+                                icon: 'percent',
+                                label: 'Success Rate',
+                                value: `${goalPercentage}%`
+                            }
+                        ]
+                    });
+                    goalPercentageEl.addEventListener('mouseenter', (evt) => {
+                        // Track goal percentage tooltip interaction
+                        if (window.goatcounter && window.goatcounter.count) {
+                            window.goatcounter.count({
+                                path: 'stat-tooltip-goal-percentage',
+                                title: 'Goal Percentage Tooltip Viewed',
+                                event: true
+                            });
+                        }
+                        showTooltip(goalPercentageTooltipHtml, evt);
+                    });
+                    goalPercentageEl.addEventListener('mousemove', updateTooltipPosition);
+                    goalPercentageEl.addEventListener('mouseleave', hideTooltip);
+                    goalPercentageEl.style.cursor = 'help';
                 }
 
             }, 500);
