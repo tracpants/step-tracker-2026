@@ -392,7 +392,7 @@
             </div>
             <div>
                 <div class="stat" id="goal-percentage">-</div>
-                <div class="label">Goal Progress</div>
+                <div class="label">Adherence Score</div>
             </div>
         </div>
 
@@ -646,6 +646,7 @@
             let streakStartDate = null, streakEndDate = null;
             let today = new Date(); today.setHours(0,0,0,0);
             let dayCount = Object.keys(data).length;
+            let daysWithGoal = 0; // Count days that hit 10k+
 
             Object.keys(data).sort().reverse().forEach(dateStr => {
                 const entry = data[dateStr];
@@ -653,6 +654,11 @@
                 let km = typeof entry === 'object' ? entry.km : 0;
                 total += steps;
                 totalKm += km;
+
+                // Count days with 10k+ steps
+                if (steps >= 10000) {
+                    daysWithGoal++;
+                }
 
                 let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
                 if (active && date <= today) {
@@ -668,7 +674,11 @@
 
             const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
             const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
-            const goalPercentage = Math.round((dailyAverage / 10000) * 100);
+
+            // Calculate day of year (1-366)
+            const yearStart = new Date(2026, 0, 1);
+            const dayOfYear = Math.ceil((today - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+            const goalPercentage = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
@@ -1161,21 +1171,21 @@
                 const goalPercentageEl = document.getElementById('goal-percentage');
                 if (goalPercentageEl) {
                     const goalPercentageTooltipHtml = renderStatsCard({
-                        title: 'Goal Progress',
+                        title: 'Adherence Score',
                         stats: [
                             {
-                                icon: 'target',
-                                label: 'Daily Average',
-                                value: fmt(dailyAverage)
+                                icon: 'check-circle',
+                                label: 'Days with 10k+',
+                                value: `${daysWithGoal} days`
                             },
                             {
-                                icon: 'trophy',
-                                label: 'Daily Goal',
-                                value: '10,000 steps'
+                                icon: 'calendar',
+                                label: 'Day of Year',
+                                value: `Day ${dayOfYear}`
                             },
                             {
                                 icon: 'percent',
-                                label: 'Progress',
+                                label: 'Adherence',
                                 value: `${goalPercentage}%`
                             }
                         ]
