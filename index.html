@@ -1170,19 +1170,19 @@
 
                 const goalPercentageEl = document.getElementById('goal-percentage');
                 if (goalPercentageEl) {
-                    const actualYearProgress = Math.round((dayOfYear / 365) * 100);
+                    const successRate = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
                     const goalPercentageTooltipHtml = renderStatsCard({
                         title: 'Year Progress',
                         stats: [
                             {
                                 icon: 'calendar',
                                 label: 'Year Progress',
-                                value: `${actualYearProgress}%`
+                                value: `${goalPercentage}%`
                             },
                             {
                                 icon: 'percent',
                                 label: 'Success Rate',
-                                value: `${goalPercentage}%`
+                                value: `${successRate}%`
                             }
                         ]
                     });
