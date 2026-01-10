@@ -104,6 +104,22 @@
             overflow: hidden;
         }
 
+        /* Mobile tooltip adjustments */
+        @media (max-width: 768px) {
+            #step-tooltip {
+                max-width: calc(100vw - 32px); /* Leave 16px padding on each side */
+                min-width: 180px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #step-tooltip {
+                max-width: calc(100vw - 24px); /* Leave 12px padding on each side */
+                min-width: 160px;
+                font-size: 11px;
+            }
+        }
+
         /* StatsCard components */
         .stats-card-header {
             padding: 10px 12px 8px;
@@ -693,8 +709,44 @@
 
                 const updateTooltipPosition = (evt) => {
                     const offset = 12;
-                    tooltipEl.style.left = `${evt.clientX + offset}px`;
-                    tooltipEl.style.top = `${evt.clientY + offset}px`;
+                    const padding = 8; // Padding from viewport edges
+
+                    // Get tooltip dimensions (need to show it first to measure)
+                    const tooltipRect = tooltipEl.getBoundingClientRect();
+                    const tooltipWidth = tooltipRect.width;
+                    const tooltipHeight = tooltipRect.height;
+
+                    // Get viewport dimensions
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+
+                    // Calculate initial position (bottom-right of cursor)
+                    let left = evt.clientX + offset;
+                    let top = evt.clientY + offset;
+
+                    // Check if tooltip overflows right edge
+                    if (left + tooltipWidth + padding > viewportWidth) {
+                        // Position to the left of cursor instead
+                        left = evt.clientX - tooltipWidth - offset;
+                        // Ensure it doesn't overflow left edge
+                        if (left < padding) {
+                            left = padding;
+                        }
+                    }
+
+                    // Check if tooltip overflows bottom edge
+                    if (top + tooltipHeight + padding > viewportHeight) {
+                        // Position above cursor instead
+                        top = evt.clientY - tooltipHeight - offset;
+                        // Ensure it doesn't overflow top edge
+                        if (top < padding) {
+                            top = padding;
+                        }
+                    }
+
+                    // Apply final position
+                    tooltipEl.style.left = `${left}px`;
+                    tooltipEl.style.top = `${top}px`;
                 };
 
                 const showTooltip = (html, evt) => {
