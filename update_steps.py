@@ -328,8 +328,8 @@ def main():
                 logging.info(f"  NEW: {date_str} = {steps} steps, {distance_km} km")
             elif existing_value != new_data:
                 # Updated date
-                old_steps = existing_value.get("steps", 0) if isinstance(existing_value, dict) else existing_value
-                old_km = existing_value.get("km", 0) if isinstance(existing_value, dict) else 0
+                old_steps = (existing_value.get("steps") or 0) if isinstance(existing_value, dict) else (existing_value or 0)
+                old_km = (existing_value.get("km") or 0) if isinstance(existing_value, dict) else 0
                 step_change = steps - old_steps
                 km_change = distance_km - old_km
                 data_points[date_str] = new_data
