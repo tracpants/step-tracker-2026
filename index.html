@@ -392,7 +392,7 @@
             </div>
             <div>
                 <div class="stat" id="goal-percentage">-</div>
-                <div class="label">Success Rate</div>
+                <div class="label">Year Progress</div>
             </div>
         </div>
 
@@ -678,7 +678,7 @@
             // Calculate day of year (1-366)
             const yearStart = new Date(2026, 0, 1);
             const dayOfYear = Math.ceil((today - yearStart) / (1000 * 60 * 60 * 24)) + 1;
-            const goalPercentage = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
+            const goalPercentage = Math.round((daysWithGoal / 365) * 100);
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
@@ -1171,7 +1171,7 @@
                 const goalPercentageEl = document.getElementById('goal-percentage');
                 if (goalPercentageEl) {
                     const goalPercentageTooltipHtml = renderStatsCard({
-                        title: 'Success Rate',
+                        title: 'Year Progress',
                         stats: [
                             {
                                 icon: 'check-circle',
@@ -1180,12 +1180,12 @@
                             },
                             {
                                 icon: 'calendar',
-                                label: 'Day of Year',
-                                value: `Day ${dayOfYear}`
+                                label: 'Total Days in Year',
+                                value: `365 days`
                             },
                             {
                                 icon: 'percent',
-                                label: 'Success Rate',
+                                label: 'Year Progress',
                                 value: `${goalPercentage}%`
                             }
                         ]
