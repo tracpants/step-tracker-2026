@@ -392,7 +392,7 @@
             </div>
             <div>
                 <div class="stat" id="goal-percentage">-</div>
-                <div class="label">Adherence Score</div>
+                <div class="label">Goal Progress</div>
             </div>
         </div>
 
@@ -1171,7 +1171,7 @@
                 const goalPercentageEl = document.getElementById('goal-percentage');
                 if (goalPercentageEl) {
                     const goalPercentageTooltipHtml = renderStatsCard({
-                        title: 'Adherence Score',
+                        title: 'Goal Progress',
                         stats: [
                             {
                                 icon: 'check-circle',
@@ -1185,7 +1185,7 @@
                             },
                             {
                                 icon: 'percent',
-                                label: 'Adherence',
+                                label: 'Success Rate',
                                 value: `${goalPercentage}%`
                             }
                         ]
