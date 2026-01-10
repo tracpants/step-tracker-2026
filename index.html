@@ -58,7 +58,7 @@
             margin: 0 auto;
             text-align: center;
         }
-        .stats { display: inline-flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
+        .stats { display: inline-flex; flex-direction: column; gap: 20px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
         .stats.loaded { opacity: 1; }
         .stat { font-size: 24px; font-weight: bold; }
         .label { font-size: 12px; color: #8b949e; }
@@ -334,10 +334,12 @@
                 max-width: 100%;
             }
 
-            /* Stack stats vertically on narrow screens */
+            /* 2x2 grid layout on narrow screens */
             .stats {
-                flex-direction: column;
-                gap: 20px;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                max-width: 400px;
             }
 
             /* Ensure heatmap container scrolls horizontally */
@@ -387,6 +389,10 @@
             <div>
                 <div class="stat" id="current-streak">-</div>
                 <div class="label">10k+ Streak</div>
+            </div>
+            <div>
+                <div class="stat" id="goal-percentage">-</div>
+                <div class="label">Goal Progress</div>
             </div>
         </div>
 
@@ -662,10 +668,12 @@
 
             const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
             const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
+            const goalPercentage = Math.round((dailyAverage / 10000) * 100);
 
             document.getElementById("total-steps").innerText = fmt(total);
             document.getElementById("daily-average").innerText = fmt(dailyAverage);
             document.getElementById("current-streak").innerText = streak;
+            document.getElementById("goal-percentage").innerText = goalPercentage + "%";
 
             // Trigger fade-in animation for stats
             document.querySelector('.stats').classList.add('loaded');
@@ -1148,6 +1156,44 @@
                     streakEl.addEventListener('mousemove', updateTooltipPosition);
                     streakEl.addEventListener('mouseleave', hideTooltip);
                     streakEl.style.cursor = 'help';
+                }
+
+                const goalPercentageEl = document.getElementById('goal-percentage');
+                if (goalPercentageEl) {
+                    const goalPercentageTooltipHtml = renderStatsCard({
+                        title: 'Goal Progress',
+                        stats: [
+                            {
+                                icon: 'target',
+                                label: 'Daily Average',
+                                value: fmt(dailyAverage)
+                            },
+                            {
+                                icon: 'trophy',
+                                label: 'Daily Goal',
+                                value: '10,000 steps'
+                            },
+                            {
+                                icon: 'percent',
+                                label: 'Progress',
+                                value: `${goalPercentage}%`
+                            }
+                        ]
+                    });
+                    goalPercentageEl.addEventListener('mouseenter', (evt) => {
+                        // Track goal percentage tooltip interaction
+                        if (window.goatcounter && window.goatcounter.count) {
+                            window.goatcounter.count({
+                                path: 'stat-tooltip-goal-percentage',
+                                title: 'Goal Percentage Tooltip Viewed',
+                                event: true
+                            });
+                        }
+                        showTooltip(goalPercentageTooltipHtml, evt);
+                    });
+                    goalPercentageEl.addEventListener('mousemove', updateTooltipPosition);
+                    goalPercentageEl.addEventListener('mouseleave', hideTooltip);
+                    goalPercentageEl.style.cursor = 'help';
                 }
 
             }, 500);
