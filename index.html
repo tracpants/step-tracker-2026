@@ -71,6 +71,23 @@
         /* Individual stat card styling */
         .stats > div {
             text-align: left;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Hover state for desktop */
+        @media (hover: hover) and (pointer: fine) {
+            .stats > div:hover {
+                opacity: 0.85;
+            }
+        }
+
+        /* Active/pressed state for all devices */
+        .stats > div:active {
+            transform: scale(0.97);
+            opacity: 0.7;
         }
 
         .stat {
@@ -469,6 +486,14 @@
                 flex-direction: column;
                 justify-content: center;
                 min-height: 56px;
+                cursor: pointer;
+                transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+            }
+
+            /* Mobile active state */
+            .stats > div:active {
+                transform: scale(0.97);
+                background: #0d1117;
             }
 
             .stat {
@@ -511,6 +536,197 @@
             .label {
                 font-size: 11px;
                 opacity: 0.85;
+            }
+        }
+
+        /* ========================================================================
+           BOTTOM SHEET STYLES
+           ======================================================================== */
+
+        /* Backdrop/scrim overlay */
+        .stat-sheet-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .stat-sheet-backdrop.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Bottom sheet container */
+        .stat-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #161b22;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+            z-index: 9999;
+            max-height: 70vh;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-sheet.open {
+            transform: translateY(0);
+        }
+
+        /* Drag handle area */
+        .stat-sheet-handle {
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .stat-sheet-handle:active {
+            cursor: grabbing;
+        }
+
+        .stat-sheet-handle-bar {
+            width: 40px;
+            height: 4px;
+            background: #30363d;
+            border-radius: 2px;
+        }
+
+        /* Sheet content wrapper */
+        .stat-sheet-content {
+            padding: 0 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Header section */
+        .stat-sheet-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .stat-sheet-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e6edf3;
+            margin: 0;
+        }
+
+        .stat-sheet-timeframe {
+            font-size: 12px;
+            color: #8b949e;
+            background: #21262d;
+            padding: 4px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        /* Hero metric section */
+        .stat-sheet-hero {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #0d1117;
+            border-radius: 12px;
+            border: 1px solid #21262d;
+        }
+
+        .stat-sheet-hero-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #e6edf3;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        .stat-sheet-hero-label {
+            font-size: 14px;
+            color: #8b949e;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        /* Details list */
+        .stat-sheet-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-sheet-detail-row {
+            display: grid;
+            grid-template-columns: 24px 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #0d1117;
+            border-radius: 8px;
+            border: 1px solid #21262d;
+        }
+
+        .stat-sheet-detail-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8b949e;
+        }
+
+        .stat-sheet-detail-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2;
+        }
+
+        .stat-sheet-detail-label {
+            font-size: 14px;
+            color: #8b949e;
+            font-weight: 500;
+        }
+
+        .stat-sheet-detail-value {
+            font-size: 16px;
+            color: #e6edf3;
+            font-weight: 600;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 480px) {
+            .stat-sheet {
+                max-height: 80vh;
+            }
+
+            .stat-sheet-title {
+                font-size: 18px;
+            }
+
+            .stat-sheet-hero-value {
+                font-size: 40px;
+            }
+
+            .stat-sheet-content {
+                padding: 0 16px 20px;
             }
         }
     </style>
@@ -589,6 +805,25 @@
     </div>
 
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <!-- Bottom Sheet for Stat Details -->
+    <div id="stat-sheet-backdrop" class="stat-sheet-backdrop"></div>
+    <div id="stat-sheet" class="stat-sheet" role="dialog" aria-hidden="true">
+        <div class="stat-sheet-handle">
+            <div class="stat-sheet-handle-bar"></div>
+        </div>
+        <div class="stat-sheet-content">
+            <div class="stat-sheet-header">
+                <h2 id="stat-sheet-title" class="stat-sheet-title"></h2>
+                <span id="stat-sheet-timeframe" class="stat-sheet-timeframe"></span>
+            </div>
+            <div class="stat-sheet-hero">
+                <div id="stat-sheet-hero-value" class="stat-sheet-hero-value"></div>
+                <div id="stat-sheet-hero-label" class="stat-sheet-hero-label"></div>
+            </div>
+            <div id="stat-sheet-details" class="stat-sheet-details"></div>
+        </div>
+    </div>
 
     <script>
         // ============================================================================
@@ -715,6 +950,234 @@
 
             return html;
         };
+
+        // ============================================================================
+        // BOTTOM SHEET FUNCTIONALITY
+        // ============================================================================
+
+        let currentSelectedStat = null;
+        let isSheetOpen = false;
+        let sheetStartY = 0;
+        let sheetCurrentY = 0;
+        let isDragging = false;
+
+        const sheetBackdrop = document.getElementById('stat-sheet-backdrop');
+        const sheet = document.getElementById('stat-sheet');
+        const sheetHandle = document.querySelector('.stat-sheet-handle');
+
+        /**
+         * Open the bottom sheet with specific stat data
+         * @param {string} statType - Type of stat: 'total', 'average', 'streak', 'year'
+         * @param {Object} data - Data object containing all necessary stat information
+         */
+        const openStatSheet = (statType, data) => {
+            currentSelectedStat = statType;
+            isSheetOpen = true;
+
+            // Populate the sheet content based on stat type
+            populateStatSheet(statType, data);
+
+            // Show the sheet with animation
+            requestAnimationFrame(() => {
+                sheetBackdrop.classList.add('open');
+                sheet.classList.add('open');
+                sheet.setAttribute('aria-hidden', 'false');
+            });
+
+            // Initialize Lucide icons
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+
+            // Track sheet opening
+            if (window.goatcounter && window.goatcounter.count) {
+                window.goatcounter.count({
+                    path: `stat-sheet-opened-${statType}`,
+                    title: `Stat Sheet Opened: ${statType}`,
+                    event: true
+                });
+            }
+        };
+
+        /**
+         * Close the bottom sheet
+         */
+        const closeStatSheet = () => {
+            isSheetOpen = false;
+            sheetBackdrop.classList.remove('open');
+            sheet.classList.remove('open');
+            sheet.setAttribute('aria-hidden', 'true');
+
+            // Clear selection after animation
+            setTimeout(() => {
+                if (!isSheetOpen) {
+                    currentSelectedStat = null;
+                }
+            }, 300);
+        };
+
+        /**
+         * Populate the sheet with content based on stat type
+         * @param {string} statType - Type of stat
+         * @param {Object} data - Data object
+         */
+        const populateStatSheet = (statType, data) => {
+            const titleEl = document.getElementById('stat-sheet-title');
+            const timeframeEl = document.getElementById('stat-sheet-timeframe');
+            const heroValueEl = document.getElementById('stat-sheet-hero-value');
+            const heroLabelEl = document.getElementById('stat-sheet-hero-label');
+            const detailsEl = document.getElementById('stat-sheet-details');
+
+            // Clear previous content
+            detailsEl.innerHTML = '';
+
+            switch (statType) {
+                case 'total':
+                    titleEl.textContent = 'Total Steps';
+                    timeframeEl.textContent = 'Jan 2026';
+                    heroValueEl.textContent = fmt(data.total);
+                    heroLabelEl.textContent = 'steps';
+
+                    // Add detail rows
+                    detailsEl.innerHTML = `
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('map-pin')}</div>
+                            <div class="stat-sheet-detail-label">Distance</div>
+                            <div class="stat-sheet-detail-value">${data.totalKm.toFixed(1)} km</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
+                            <div class="stat-sheet-detail-label">Period</div>
+                            <div class="stat-sheet-detail-value">${data.periodStr}</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('trophy')}</div>
+                            <div class="stat-sheet-detail-label">Best day</div>
+                            <div class="stat-sheet-detail-value">${data.bestDayStr}</div>
+                        </div>
+                    `;
+                    break;
+
+                case 'average':
+                    titleEl.textContent = 'Daily Average';
+                    timeframeEl.textContent = 'Jan 2026';
+                    heroValueEl.textContent = fmt(data.dailyAverage);
+                    heroLabelEl.textContent = 'steps/day';
+
+                    detailsEl.innerHTML = `
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('map-pin')}</div>
+                            <div class="stat-sheet-detail-label">Avg distance</div>
+                            <div class="stat-sheet-detail-value">${data.averageKm} km/day</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
+                            <div class="stat-sheet-detail-label">Days included</div>
+                            <div class="stat-sheet-detail-value">${data.dayCount}</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('trophy')}</div>
+                            <div class="stat-sheet-detail-label">Best day</div>
+                            <div class="stat-sheet-detail-value">${data.bestDayStr}</div>
+                        </div>
+                    `;
+                    break;
+
+                case 'streak':
+                    titleEl.textContent = '10k+ Streak';
+                    timeframeEl.textContent = 'Jan 2026';
+                    heroValueEl.textContent = data.streak;
+                    heroLabelEl.textContent = data.streak === 1 ? 'day' : 'days';
+
+                    detailsEl.innerHTML = `
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
+                            <div class="stat-sheet-detail-label">Period</div>
+                            <div class="stat-sheet-detail-value">${data.streakPeriod}</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('activity')}</div>
+                            <div class="stat-sheet-detail-label">Status</div>
+                            <div class="stat-sheet-detail-value">${data.streakActive ? 'Active' : 'Broken'}</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('target')}</div>
+                            <div class="stat-sheet-detail-label">Target</div>
+                            <div class="stat-sheet-detail-value">10,000 steps</div>
+                        </div>
+                    `;
+                    break;
+
+                case 'year':
+                    titleEl.textContent = 'Year Progress';
+                    timeframeEl.textContent = 'YTD';
+                    heroValueEl.textContent = `${data.goalPercentage}%`;
+                    heroLabelEl.textContent = 'of year';
+
+                    detailsEl.innerHTML = `
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
+                            <div class="stat-sheet-detail-label">Days completed</div>
+                            <div class="stat-sheet-detail-value">${data.daysWithGoal} / ${data.dayOfYear}</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('percent')}</div>
+                            <div class="stat-sheet-detail-label">Adherence</div>
+                            <div class="stat-sheet-detail-value">${data.adherence}%</div>
+                        </div>
+                        <div class="stat-sheet-detail-row">
+                            <div class="stat-sheet-detail-icon">${renderIcon('clock')}</div>
+                            <div class="stat-sheet-detail-label">Remaining</div>
+                            <div class="stat-sheet-detail-value">${365 - data.dayOfYear} days</div>
+                        </div>
+                    `;
+                    break;
+            }
+        };
+
+        // Backdrop click to close
+        sheetBackdrop.addEventListener('click', closeStatSheet);
+
+        // Swipe down gesture support
+        let touchStartY = 0;
+        let sheetStartTransform = 0;
+
+        sheetHandle.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            sheetStartTransform = 0;
+            isDragging = true;
+            sheet.style.transition = 'none';
+        }, { passive: true });
+
+        sheetHandle.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+
+            const touchY = e.touches[0].clientY;
+            const deltaY = touchY - touchStartY;
+
+            // Only allow dragging down
+            if (deltaY > 0) {
+                sheet.style.transform = `translateY(${deltaY}px)`;
+            }
+        }, { passive: true });
+
+        sheetHandle.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+
+            isDragging = false;
+            sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+
+            const touchY = e.changedTouches[0].clientY;
+            const deltaY = touchY - touchStartY;
+
+            // Close if dragged down more than 100px
+            if (deltaY > 100) {
+                closeStatSheet();
+            } else {
+                // Snap back to open position
+                sheet.style.transform = 'translateY(0)';
+            }
+        }, { passive: true });
 
         // Determine data source - R2 or local with fallback
         const primaryUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
@@ -1245,159 +1708,102 @@
                     }
                 });
 
-                // Add tooltips for Total Steps and Daily Average stats
-                const totalStepsEl = document.getElementById('total-steps');
-                const dailyAverageEl = document.getElementById('daily-average');
-                const streakEl = document.getElementById('current-streak');
+                // Add bottom sheet handlers to stat cards
+                const statCards = document.querySelectorAll('.stats > div');
 
-                if (totalStepsEl) {
-                    const totalStepsTooltipHtml = renderStatsCard({
-                        title: 'Total Steps',
-                        headline: {
-                            value: fmt(total),
-                            label: 'steps'
-                        },
-                        stats: [
-                            {
-                                icon: 'map-pin',
-                                label: 'Distance',
-                                value: `${totalKm.toFixed(1)} km`
-                            }
-                        ]
-                    });
-                    totalStepsEl.addEventListener('mouseenter', () => {
-                        // Track total steps tooltip interaction
-                        if (window.goatcounter && window.goatcounter.count) {
-                            window.goatcounter.count({
-                                path: 'stat-tooltip-total-steps',
-                                title: 'Total Steps Tooltip Viewed',
-                                event: true
-                            });
-                        }
-                        showTooltip(totalStepsTooltipHtml, totalStepsEl);
-                    });
-                    totalStepsEl.addEventListener('mouseleave', hideTooltip);
-                    totalStepsEl.addEventListener('click', () => showTooltip(totalStepsTooltipHtml, totalStepsEl));
-                    totalStepsEl.style.cursor = 'help';
-                }
+                // Find max step day info for "Best day" field
+                const maxStepEntry = chartData.reduce((max, item) =>
+                    item.value > max.value ? item : max,
+                    { value: 0, date: null }
+                );
 
-                if (dailyAverageEl) {
-                    const dailyAverageTooltipHtml = renderStatsCard({
-                        title: 'Daily Average',
-                        headline: {
-                            value: fmt(dailyAverage),
-                            label: 'steps per day'
-                        },
-                        stats: [
-                            {
-                                icon: 'map-pin',
-                                label: 'Distance',
-                                value: `${averageKm} km/day`
-                            }
-                        ]
+                const formatMaxDay = (dateStr) => {
+                    const date = new Date(dateStr + 'T00:00:00');
+                    const formatted = date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
                     });
-                    dailyAverageEl.addEventListener('mouseenter', () => {
-                        // Track daily average tooltip interaction
-                        if (window.goatcounter && window.goatcounter.count) {
-                            window.goatcounter.count({
-                                path: 'stat-tooltip-daily-average',
-                                title: 'Daily Average Tooltip Viewed',
-                                event: true
-                            });
-                        }
-                        showTooltip(dailyAverageTooltipHtml, dailyAverageEl);
+                    return `${formatted} (${fmt(maxStepEntry.value)})`;
+                };
+
+                const bestDayStr = maxStepEntry.date ? formatMaxDay(maxStepEntry.date) : 'N/A';
+
+                // Helper to format streak dates
+                const formatStreakDate = (dateStr) => {
+                    const date = new Date(dateStr + 'T00:00:00');
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
                     });
-                    dailyAverageEl.addEventListener('mouseleave', hideTooltip);
-                    dailyAverageEl.addEventListener('click', () => showTooltip(dailyAverageTooltipHtml, dailyAverageEl));
-                    dailyAverageEl.style.cursor = 'help';
-                }
+                };
 
-                if (streakEl && streak > 0 && streakStartDate && streakEndDate) {
-                    const formatStreakDate = (dateStr) => {
-                        const date = new Date(dateStr + 'T00:00:00');
-                        return date.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                        });
-                    };
-
-                    let dateRange;
+                let streakPeriod = 'N/A';
+                if (streak > 0 && streakStartDate && streakEndDate) {
                     if (streakStartDate === streakEndDate) {
-                        // Single day streak
-                        dateRange = formatStreakDate(streakStartDate);
+                        streakPeriod = formatStreakDate(streakStartDate);
                     } else {
-                        // Multi-day streak
-                        dateRange = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
+                        streakPeriod = `${formatStreakDate(streakStartDate)} - ${formatStreakDate(streakEndDate)}`;
                     }
-
-                    const streakTooltipHtml = renderStatsCard({
-                        title: '10k+ Streak',
-                        headline: {
-                            value: streak,
-                            label: streak === 1 ? 'day' : 'days'
-                        },
-                        stats: [
-                            {
-                                icon: 'calendar',
-                                label: 'Period',
-                                value: dateRange
-                            }
-                        ]
-                    });
-
-                    streakEl.addEventListener('mouseenter', () => {
-                        // Track streak tooltip interaction
-                        if (window.goatcounter && window.goatcounter.count) {
-                            window.goatcounter.count({
-                                path: 'stat-tooltip-streak',
-                                title: `Streak Tooltip Viewed: ${streak} day streak`,
-                                event: true
-                            });
-                        }
-                        showTooltip(streakTooltipHtml, streakEl);
-                    });
-                    streakEl.addEventListener('mouseleave', hideTooltip);
-                    streakEl.addEventListener('click', () => showTooltip(streakTooltipHtml, streakEl));
-                    streakEl.style.cursor = 'help';
                 }
 
-                const goalPercentageEl = document.getElementById('goal-percentage');
-                if (goalPercentageEl) {
-                    const successRate = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
-                    const goalPercentageTooltipHtml = renderStatsCard({
-                        title: 'Year Progress',
-                        headline: {
-                            value: `${goalPercentage}%`,
-                            label: 'of year'
-                        },
-                        stats: [
-                            {
-                                icon: 'calendar',
-                                label: 'Days completed',
-                                value: `${daysWithGoal} / ${dayOfYear}`
-                            },
-                            {
-                                icon: 'percent',
-                                label: 'Success rate',
-                                value: `${successRate}%`
-                            }
-                        ]
+                // Period string for total steps (e.g., "Jan 1-11, 2026")
+                const dates = Object.keys(data).sort();
+                const firstDate = dates[0] ? new Date(dates[0] + 'T00:00:00') : null;
+                const lastDate = dates[dates.length - 1] ? new Date(dates[dates.length - 1] + 'T00:00:00') : null;
+                let periodStr = 'Jan 2026';
+                if (firstDate && lastDate) {
+                    const first = firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const last = lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    periodStr = `${first}–${last}`;
+                }
+
+                const adherence = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
+
+                // Card 0: Total Steps
+                if (statCards[0]) {
+                    statCards[0].addEventListener('click', () => {
+                        openStatSheet('total', {
+                            total,
+                            totalKm,
+                            periodStr,
+                            bestDayStr
+                        });
                     });
-                    goalPercentageEl.addEventListener('mouseenter', () => {
-                        // Track goal percentage tooltip interaction
-                        if (window.goatcounter && window.goatcounter.count) {
-                            window.goatcounter.count({
-                                path: 'stat-tooltip-goal-percentage',
-                                title: 'Goal Percentage Tooltip Viewed',
-                                event: true
-                            });
-                        }
-                        showTooltip(goalPercentageTooltipHtml, goalPercentageEl);
+                }
+
+                // Card 1: Daily Average
+                if (statCards[1]) {
+                    statCards[1].addEventListener('click', () => {
+                        openStatSheet('average', {
+                            dailyAverage,
+                            averageKm,
+                            dayCount,
+                            bestDayStr
+                        });
                     });
-                    goalPercentageEl.addEventListener('mouseleave', hideTooltip);
-                    goalPercentageEl.addEventListener('click', () => showTooltip(goalPercentageTooltipHtml, goalPercentageEl));
-                    goalPercentageEl.style.cursor = 'help';
+                }
+
+                // Card 2: 10k+ Streak
+                if (statCards[2]) {
+                    statCards[2].addEventListener('click', () => {
+                        openStatSheet('streak', {
+                            streak,
+                            streakPeriod,
+                            streakActive: active
+                        });
+                    });
+                }
+
+                // Card 3: Year Progress
+                if (statCards[3]) {
+                    statCards[3].addEventListener('click', () => {
+                        openStatSheet('year', {
+                            goalPercentage,
+                            daysWithGoal,
+                            dayOfYear,
+                            adherence
+                        });
+                    });
                 }
 
             }, 500);
