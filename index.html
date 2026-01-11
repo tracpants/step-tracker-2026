@@ -585,30 +585,9 @@
             transform: translateY(0);
         }
 
-        /* Drag handle area */
-        .stat-sheet-handle {
-            padding: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: grab;
-            touch-action: none;
-        }
-
-        .stat-sheet-handle:active {
-            cursor: grabbing;
-        }
-
-        .stat-sheet-handle-bar {
-            width: 40px;
-            height: 4px;
-            background: #30363d;
-            border-radius: 2px;
-        }
-
         /* Sheet content wrapper */
         .stat-sheet-content {
-            padding: 0 20px 24px;
+            padding: 20px 20px 24px;
             overflow-y: auto;
             flex: 1;
         }
@@ -637,6 +616,35 @@
             border-radius: 12px;
             white-space: nowrap;
             font-weight: 500;
+        }
+
+        .stat-sheet-close-button {
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s ease, color 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .stat-sheet-close-button:hover {
+            background: #21262d;
+            color: #e6edf3;
+        }
+
+        .stat-sheet-close-button:active {
+            background: #30363d;
+        }
+
+        .stat-sheet-close-button svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
         }
 
         /* Hero metric section */
@@ -726,7 +734,7 @@
             }
 
             .stat-sheet-content {
-                padding: 0 16px 20px;
+                padding: 16px 16px 20px;
             }
         }
     </style>
@@ -809,13 +817,15 @@
     <!-- Bottom Sheet for Stat Details -->
     <div id="stat-sheet-backdrop" class="stat-sheet-backdrop"></div>
     <div id="stat-sheet" class="stat-sheet" role="dialog" aria-hidden="true">
-        <div class="stat-sheet-handle">
-            <div class="stat-sheet-handle-bar"></div>
-        </div>
         <div class="stat-sheet-content">
             <div class="stat-sheet-header">
-                <h2 id="stat-sheet-title" class="stat-sheet-title"></h2>
-                <span id="stat-sheet-timeframe" class="stat-sheet-timeframe"></span>
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <h2 id="stat-sheet-title" class="stat-sheet-title"></h2>
+                    <span id="stat-sheet-timeframe" class="stat-sheet-timeframe"></span>
+                </div>
+                <button id="stat-sheet-close" class="stat-sheet-close-button" aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
             <div class="stat-sheet-hero">
                 <div id="stat-sheet-hero-value" class="stat-sheet-hero-value"></div>
@@ -957,13 +967,9 @@
 
         let currentSelectedStat = null;
         let isSheetOpen = false;
-        let sheetStartY = 0;
-        let sheetCurrentY = 0;
-        let isDragging = false;
 
         const sheetBackdrop = document.getElementById('stat-sheet-backdrop');
         const sheet = document.getElementById('stat-sheet');
-        const sheetHandle = document.querySelector('.stat-sheet-handle');
 
         /**
          * Open the bottom sheet with specific stat data
@@ -1138,46 +1144,11 @@
         // Backdrop click to close
         sheetBackdrop.addEventListener('click', closeStatSheet);
 
-        // Swipe down gesture support
-        let touchStartY = 0;
-        let sheetStartTransform = 0;
-
-        sheetHandle.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            sheetStartTransform = 0;
-            isDragging = true;
-            sheet.style.transition = 'none';
-        }, { passive: true });
-
-        sheetHandle.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-
-            const touchY = e.touches[0].clientY;
-            const deltaY = touchY - touchStartY;
-
-            // Only allow dragging down
-            if (deltaY > 0) {
-                sheet.style.transform = `translateY(${deltaY}px)`;
-            }
-        }, { passive: true });
-
-        sheetHandle.addEventListener('touchend', (e) => {
-            if (!isDragging) return;
-
-            isDragging = false;
-            sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-
-            const touchY = e.changedTouches[0].clientY;
-            const deltaY = touchY - touchStartY;
-
-            // Close if dragged down more than 100px
-            if (deltaY > 100) {
-                closeStatSheet();
-            } else {
-                // Snap back to open position
-                sheet.style.transform = 'translateY(0)';
-            }
-        }, { passive: true });
+        // Close button click to close
+        const sheetCloseButton = document.getElementById('stat-sheet-close');
+        if (sheetCloseButton) {
+            sheetCloseButton.addEventListener('click', closeStatSheet);
+        }
 
         // Determine data source - R2 or local with fallback
         const primaryUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
