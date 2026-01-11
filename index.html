@@ -134,14 +134,81 @@
             display: none;
             max-width: 320px;
             min-width: 200px;
-            border: 1px solid #30363d;
+            border: 1px solid rgba(48, 54, 61, 0.6);
             border-radius: 8px;
             background: #161b22;
             color: #c9d1d9;
             font-size: 12px;
             line-height: 1.5;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            overflow: visible;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 180ms ease-out, transform 180ms ease-out;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #step-tooltip.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Caret/triangle pointer */
+        #step-tooltip::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 6px;
+            border-color: transparent;
+        }
+
+        /* Caret positions - will be set dynamically via classes */
+        #step-tooltip.caret-bottom::before {
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-top-color: rgba(48, 54, 61, 0.6);
+            border-bottom-width: 0;
+        }
+
+        #step-tooltip.caret-bottom::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px;
+            border-color: transparent;
+            border-top-color: #161b22;
+            border-bottom-width: 0;
+        }
+
+        #step-tooltip.caret-top::before {
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-bottom-color: rgba(48, 54, 61, 0.6);
+            border-top-width: 0;
+        }
+
+        #step-tooltip.caret-top::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px;
+            border-color: transparent;
+            border-bottom-color: #161b22;
+            border-top-width: 0;
         }
 
         /* Mobile tooltip adjustments */
@@ -165,7 +232,7 @@
             padding: 10px 12px 8px;
             border-bottom: 1px solid #21262d;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 14px;
             color: #e6edf3;
             display: flex;
             align-items: center;
@@ -179,46 +246,48 @@
         }
 
         .stats-card-body {
-            padding: 8px 12px;
+            padding: 10px 12px;
         }
 
         .stats-card-row {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 20px 1fr auto;
             align-items: center;
-            padding: 6px 0;
-            gap: 16px;
+            gap: 8px;
+            min-height: 28px;
         }
 
         .stats-card-row:not(:last-child) {
-            border-bottom: 1px solid #21262d;
+            margin-bottom: 8px;
         }
 
         .stats-card-label {
             color: #8b949e;
-            font-size: 12px;
+            font-size: 13px;
             display: flex;
             align-items: center;
-            gap: 6px;
         }
 
         .stats-card-value {
             color: #e6edf3;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 16px;
             text-align: right;
+            font-variant-numeric: tabular-nums;
         }
 
         .stats-card-icon {
-            font-size: 14px;
+            width: 20px;
+            height: 20px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         .stats-card-icon svg {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             stroke-width: 2;
         }
 
@@ -232,6 +301,27 @@
 
         .stats-card-simple {
             padding: 10px 12px;
+        }
+
+        /* Headline metric - larger, emphasized first stat */
+        .stats-card-headline {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .stats-card-headline-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #e6edf3;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+
+        .stats-card-headline-label {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 4px;
         }
 
         /* Legend styling */
@@ -565,6 +655,7 @@
          * @param {Object} config - Configuration object
          * @param {string} config.title - Optional header title
          * @param {string} config.titleIcon - Optional icon name for the title
+         * @param {Object} config.headline - Optional headline stat {label, value}
          * @param {Array} config.stats - Array of stat objects {label, value, icon}
          * @param {string} config.footer - Optional footer text
          * @param {string} config.simple - Optional simple text for basic tooltips
@@ -587,18 +678,31 @@
                 html += `<div class="stats-card-header">${titleContent}</div>`;
             }
 
+            // Headline (large emphasized metric)
+            if (config.headline) {
+                html += '<div class="stats-card-headline">';
+                html += `<div class="stats-card-headline-value">${config.headline.value}</div>`;
+                if (config.headline.label) {
+                    html += `<div class="stats-card-headline-label">${config.headline.label}</div>`;
+                }
+                html += '</div>';
+            }
+
             // Body with stats
             if (config.stats && config.stats.length > 0) {
                 html += '<div class="stats-card-body">';
                 config.stats.forEach(stat => {
                     html += '<div class="stats-card-row">';
-                    html += `<div class="stats-card-label">`;
+                    // Icon column (fixed 20px)
                     if (stat.icon) {
                         html += `<span class="stats-card-icon">${renderIcon(stat.icon)}</span>`;
+                    } else {
+                        html += `<span class="stats-card-icon"></span>`;
                     }
-                    html += `<span>${stat.label}</span>`;
-                    html += '</div>';
-                    html += `<div class="stats-card-value">${stat.value}</div>`;
+                    // Label column
+                    html += `<span class="stats-card-label">${stat.label}</span>`;
+                    // Value column (right-aligned)
+                    html += `<span class="stats-card-value">${stat.value}</span>`;
                     html += '</div>';
                 });
                 html += '</div>';
@@ -847,11 +951,16 @@
                     day: 'numeric',
                 });
 
-                const updateTooltipPosition = (evt) => {
-                    const offset = 12;
-                    const padding = 8; // Padding from viewport edges
+                let currentTooltipTarget = null;
 
-                    // Get tooltip dimensions (need to show it first to measure)
+                const updateTooltipPosition = (targetElement) => {
+                    if (!targetElement) return;
+
+                    const offset = 10;
+                    const padding = 8;
+
+                    // Get element and tooltip dimensions
+                    const targetRect = targetElement.getBoundingClientRect();
                     const tooltipRect = tooltipEl.getBoundingClientRect();
                     const tooltipWidth = tooltipRect.width;
                     const tooltipHeight = tooltipRect.height;
@@ -860,40 +969,59 @@
                     const viewportWidth = window.innerWidth;
                     const viewportHeight = window.innerHeight;
 
-                    // Calculate initial position (bottom-right of cursor)
-                    let left = evt.clientX + offset;
-                    let top = evt.clientY + offset;
+                    // Calculate center of target element
+                    const targetCenterX = targetRect.left + targetRect.width / 2;
+                    const targetCenterY = targetRect.top + targetRect.height / 2;
 
-                    // Check if tooltip overflows right edge
-                    if (left + tooltipWidth + padding > viewportWidth) {
-                        // Position to the left of cursor instead
-                        left = evt.clientX - tooltipWidth - offset;
-                        // Ensure it doesn't overflow left edge
-                        if (left < padding) {
-                            left = padding;
-                        }
+                    // Try to position above first (preferred)
+                    let top = targetRect.top - tooltipHeight - offset;
+                    let caretPosition = 'caret-bottom'; // caret points down when tooltip is above
+
+                    // If doesn't fit above, flip below
+                    if (top < padding) {
+                        top = targetRect.bottom + offset;
+                        caretPosition = 'caret-top'; // caret points up when tooltip is below
                     }
 
-                    // Check if tooltip overflows bottom edge
+                    // Center horizontally on target
+                    let left = targetCenterX - tooltipWidth / 2;
+
+                    // Keep within viewport bounds horizontally
+                    if (left < padding) {
+                        left = padding;
+                    } else if (left + tooltipWidth + padding > viewportWidth) {
+                        left = viewportWidth - tooltipWidth - padding;
+                    }
+
+                    // Keep within viewport bounds vertically
                     if (top + tooltipHeight + padding > viewportHeight) {
-                        // Position above cursor instead
-                        top = evt.clientY - tooltipHeight - offset;
-                        // Ensure it doesn't overflow top edge
-                        if (top < padding) {
-                            top = padding;
-                        }
+                        top = viewportHeight - tooltipHeight - padding;
                     }
+
+                    // Remove previous caret classes
+                    tooltipEl.classList.remove('caret-top', 'caret-bottom');
+                    tooltipEl.classList.add(caretPosition);
 
                     // Apply final position
                     tooltipEl.style.left = `${left}px`;
                     tooltipEl.style.top = `${top}px`;
                 };
 
-                const showTooltip = (html, evt) => {
+                const showTooltip = (html, targetElement) => {
+                    currentTooltipTarget = targetElement;
                     tooltipEl.innerHTML = html;
                     tooltipEl.style.display = 'block';
                     tooltipEl.setAttribute('aria-hidden', 'false');
-                    updateTooltipPosition(evt);
+
+                    // Update position after a brief moment to ensure dimensions are calculated
+                    requestAnimationFrame(() => {
+                        updateTooltipPosition(targetElement);
+                        // Trigger animation
+                        requestAnimationFrame(() => {
+                            tooltipEl.classList.add('show');
+                        });
+                    });
+
                     // Initialize Lucide icons in the tooltip
                     if (window.lucide) {
                         lucide.createIcons();
@@ -901,9 +1029,23 @@
                 };
 
                 const hideTooltip = () => {
-                    tooltipEl.style.display = 'none';
-                    tooltipEl.setAttribute('aria-hidden', 'true');
+                    tooltipEl.classList.remove('show');
+                    currentTooltipTarget = null;
+                    // Wait for animation to complete before hiding
+                    setTimeout(() => {
+                        if (!currentTooltipTarget) {
+                            tooltipEl.style.display = 'none';
+                            tooltipEl.setAttribute('aria-hidden', 'true');
+                        }
+                    }, 200);
                 };
+
+                // Tap outside to dismiss
+                document.addEventListener('click', (evt) => {
+                    if (currentTooltipTarget && !tooltipEl.contains(evt.target) && !currentTooltipTarget.contains(evt.target)) {
+                        hideTooltip();
+                    }
+                });
 
                 const cells = document.querySelectorAll('#cal-heatmap rect.ch-subdomain-bg');
                 console.log('Found subdomain cells:', cells.length);
@@ -1024,10 +1166,14 @@
                     const plainTextTitle = `${isMaxDay ? 'Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
                     cell.setAttribute('title', plainTextTitle);
 
-                    // Custom tooltip handlers
-                    cell.addEventListener('mouseenter', (evt) => showTooltip(tooltipHtml, evt));
-                    cell.addEventListener('mousemove', updateTooltipPosition);
+                    // Custom tooltip handlers - use target element for positioning
+                    cell.addEventListener('mouseenter', () => showTooltip(tooltipHtml, cell));
                     cell.addEventListener('mouseleave', hideTooltip);
+                    // Support touch devices
+                    cell.addEventListener('touchstart', (evt) => {
+                        evt.preventDefault();
+                        showTooltip(tooltipHtml, cell);
+                    });
                 });
 
                 // If you leave the SVG entirely, hide tooltip
@@ -1082,7 +1228,7 @@
                             stats: monthStats
                         });
 
-                        label.addEventListener('mouseenter', (evt) => {
+                        label.addEventListener('mouseenter', () => {
                             // Track month tooltip interaction
                             if (window.goatcounter && window.goatcounter.count) {
                                 window.goatcounter.count({
@@ -1091,10 +1237,10 @@
                                     event: true
                                 });
                             }
-                            showTooltip(monthTooltipHtml, evt);
+                            showTooltip(monthTooltipHtml, label);
                         });
-                        label.addEventListener('mousemove', updateTooltipPosition);
                         label.addEventListener('mouseleave', hideTooltip);
+                        label.addEventListener('click', () => showTooltip(monthTooltipHtml, label));
                         label.style.cursor = 'help';
                     }
                 });
@@ -1107,12 +1253,11 @@
                 if (totalStepsEl) {
                     const totalStepsTooltipHtml = renderStatsCard({
                         title: 'Total Steps',
+                        headline: {
+                            value: fmt(total),
+                            label: 'steps'
+                        },
                         stats: [
-                            {
-                                icon: 'footprints',
-                                label: 'Steps',
-                                value: fmt(total)
-                            },
                             {
                                 icon: 'map-pin',
                                 label: 'Distance',
@@ -1120,7 +1265,7 @@
                             }
                         ]
                     });
-                    totalStepsEl.addEventListener('mouseenter', (evt) => {
+                    totalStepsEl.addEventListener('mouseenter', () => {
                         // Track total steps tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
                             window.goatcounter.count({
@@ -1129,30 +1274,29 @@
                                 event: true
                             });
                         }
-                        showTooltip(totalStepsTooltipHtml, evt);
+                        showTooltip(totalStepsTooltipHtml, totalStepsEl);
                     });
-                    totalStepsEl.addEventListener('mousemove', updateTooltipPosition);
                     totalStepsEl.addEventListener('mouseleave', hideTooltip);
+                    totalStepsEl.addEventListener('click', () => showTooltip(totalStepsTooltipHtml, totalStepsEl));
                     totalStepsEl.style.cursor = 'help';
                 }
 
                 if (dailyAverageEl) {
                     const dailyAverageTooltipHtml = renderStatsCard({
                         title: 'Daily Average',
+                        headline: {
+                            value: fmt(dailyAverage),
+                            label: 'steps per day'
+                        },
                         stats: [
                             {
-                                icon: 'bar-chart-3',
-                                label: 'Steps per day',
-                                value: fmt(dailyAverage)
-                            },
-                            {
                                 icon: 'map-pin',
-                                label: 'Distance per day',
-                                value: `${averageKm} km`
+                                label: 'Distance',
+                                value: `${averageKm} km/day`
                             }
                         ]
                     });
-                    dailyAverageEl.addEventListener('mouseenter', (evt) => {
+                    dailyAverageEl.addEventListener('mouseenter', () => {
                         // Track daily average tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
                             window.goatcounter.count({
@@ -1161,10 +1305,10 @@
                                 event: true
                             });
                         }
-                        showTooltip(dailyAverageTooltipHtml, evt);
+                        showTooltip(dailyAverageTooltipHtml, dailyAverageEl);
                     });
-                    dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
                     dailyAverageEl.addEventListener('mouseleave', hideTooltip);
+                    dailyAverageEl.addEventListener('click', () => showTooltip(dailyAverageTooltipHtml, dailyAverageEl));
                     dailyAverageEl.style.cursor = 'help';
                 }
 
@@ -1189,12 +1333,11 @@
 
                     const streakTooltipHtml = renderStatsCard({
                         title: '10k+ Streak',
+                        headline: {
+                            value: streak,
+                            label: streak === 1 ? 'day' : 'days'
+                        },
                         stats: [
-                            {
-                                icon: 'flame',
-                                label: 'Current streak',
-                                value: `${streak} ${streak === 1 ? 'day' : 'days'}`
-                            },
                             {
                                 icon: 'calendar',
                                 label: 'Period',
@@ -1203,7 +1346,7 @@
                         ]
                     });
 
-                    streakEl.addEventListener('mouseenter', (evt) => {
+                    streakEl.addEventListener('mouseenter', () => {
                         // Track streak tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
                             window.goatcounter.count({
@@ -1212,10 +1355,10 @@
                                 event: true
                             });
                         }
-                        showTooltip(streakTooltipHtml, evt);
+                        showTooltip(streakTooltipHtml, streakEl);
                     });
-                    streakEl.addEventListener('mousemove', updateTooltipPosition);
                     streakEl.addEventListener('mouseleave', hideTooltip);
+                    streakEl.addEventListener('click', () => showTooltip(streakTooltipHtml, streakEl));
                     streakEl.style.cursor = 'help';
                 }
 
@@ -1224,20 +1367,24 @@
                     const successRate = dayOfYear > 0 ? Math.round((daysWithGoal / dayOfYear) * 100) : 0;
                     const goalPercentageTooltipHtml = renderStatsCard({
                         title: 'Year Progress',
+                        headline: {
+                            value: `${goalPercentage}%`,
+                            label: 'of year'
+                        },
                         stats: [
                             {
                                 icon: 'calendar',
-                                label: 'Year Progress',
-                                value: `${goalPercentage}%`
+                                label: 'Days completed',
+                                value: `${daysWithGoal} / ${dayOfYear}`
                             },
                             {
                                 icon: 'percent',
-                                label: 'Success Rate',
+                                label: 'Success rate',
                                 value: `${successRate}%`
                             }
                         ]
                     });
-                    goalPercentageEl.addEventListener('mouseenter', (evt) => {
+                    goalPercentageEl.addEventListener('mouseenter', () => {
                         // Track goal percentage tooltip interaction
                         if (window.goatcounter && window.goatcounter.count) {
                             window.goatcounter.count({
@@ -1246,10 +1393,10 @@
                                 event: true
                             });
                         }
-                        showTooltip(goalPercentageTooltipHtml, evt);
+                        showTooltip(goalPercentageTooltipHtml, goalPercentageEl);
                     });
-                    goalPercentageEl.addEventListener('mousemove', updateTooltipPosition);
                     goalPercentageEl.addEventListener('mouseleave', hideTooltip);
+                    goalPercentageEl.addEventListener('click', () => showTooltip(goalPercentageTooltipHtml, goalPercentageEl));
                     goalPercentageEl.style.cursor = 'help';
                 }
 
