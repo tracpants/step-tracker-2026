@@ -76,7 +76,7 @@
         .stat {
             font-size: 24px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         .label {
@@ -349,7 +349,7 @@
         /* Mobile portrait optimization */
         @media (max-width: 768px) {
             body {
-                padding: 15px 10px;
+                padding: 15px 12px;
             }
 
             .container {
@@ -371,14 +371,14 @@
             /* Consistent stat card styling for grid */
             .stats > div {
                 background: #161b22;
-                border: 1px solid #30363d;
+                border: 1px solid rgba(48, 54, 61, 0.5);
                 border-radius: 6px;
-                padding: 12px;
+                padding: 10px;
                 text-align: left;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                min-height: 64px;
+                min-height: 56px;
             }
 
             /* Ensure heatmap container scrolls horizontally */
@@ -396,7 +396,7 @@
         /* Extra small screens - reduce cell size slightly */
         @media (max-width: 480px) {
             body {
-                padding: 10px 5px;
+                padding: 10px;
             }
 
             .stats {
@@ -405,17 +405,18 @@
             }
 
             .stats > div {
-                padding: 10px;
-                min-height: 60px;
+                padding: 8px;
+                min-height: 52px;
             }
 
             .stat {
                 font-size: 20px;
-                margin-bottom: 3px;
+                margin-bottom: 6px;
             }
 
             .label {
                 font-size: 11px;
+                opacity: 0.85;
             }
         }
     </style>
