@@ -1,0 +1,330 @@
+/* ========================================================================
+   BASE LAYOUT & TYPOGRAPHY
+   ======================================================================== */
+body {
+    font-family: system-ui, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+}
+.stats { display: inline-flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
+.stats.loaded { opacity: 1; }
+.stat { font-size: 24px; font-weight: bold; }
+.label { font-size: 12px; color: #8b949e; }
+#cal-heatmap { margin: 20px 0; opacity: 0; transition: opacity 0.6s ease-in; }
+#cal-heatmap.loaded { opacity: 1; }
+
+/* Add breathing room so SVG strokes (e.g., max-day outline) don't get clipped at edges */
+#cal-heatmap svg {
+    overflow: visible;
+}
+/* Cal-Heatmap positions content tightly; this wrapper padding helps first/last column strokes */
+#cal-heatmap {
+    padding: 3px;
+    margin: 17px auto; /* keep roughly the same visual spacing as 20px */
+    display: inline-block;
+}
+
+/* SVG-friendly highlight for the max-step day (box-shadow doesn't apply to SVG rects) */
+#cal-heatmap rect.is-max-day {
+    stroke: #ffd700;
+    stroke-width: 2px;
+    /* ensure stroke is drawn clearly on top of the fill */
+    paint-order: stroke;
+    /* keep stroke sizing stable */
+    vector-effect: non-scaling-stroke;
+}
+
+/* Visual tap feedback for mobile interactions */
+#cal-heatmap rect.ch-subdomain-bg {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+/* Active state for touch devices - provides immediate visual feedback */
+#cal-heatmap rect.ch-subdomain-bg:active {
+    opacity: 0.7;
+}
+
+/* Hover state for desktop (doesn't interfere with mobile) */
+@media (hover: hover) and (pointer: fine) {
+    #cal-heatmap rect.ch-subdomain-bg:hover {
+        opacity: 0.85;
+    }
+}
+
+/* Custom tooltip (more reliable than SVG <title> tooltips across browsers) */
+#step-tooltip {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    display: none;
+    max-width: 320px;
+    min-width: 200px;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    background: #161b22;
+    color: #c9d1d9;
+    font-size: 12px;
+    line-height: 1.5;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    overflow: hidden;
+}
+
+/* Mobile tooltip adjustments */
+@media (max-width: 768px) {
+    #step-tooltip {
+        max-width: calc(100vw - 32px); /* Leave 16px padding on each side */
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 480px) {
+    #step-tooltip {
+        max-width: calc(100vw - 24px); /* Leave 12px padding on each side */
+        min-width: 160px;
+        font-size: 11px;
+    }
+}
+
+/* StatsCard components */
+.stats-card-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #21262d;
+    font-weight: 600;
+    font-size: 13px;
+    color: #e6edf3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stats-card-header svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+}
+
+.stats-card-body {
+    padding: 8px 12px;
+}
+
+.stats-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    gap: 16px;
+}
+
+.stats-card-row:not(:last-child) {
+    border-bottom: 1px solid #21262d;
+}
+
+.stats-card-label {
+    color: #8b949e;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stats-card-value {
+    color: #e6edf3;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: right;
+}
+
+.stats-card-icon {
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stats-card-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+}
+
+.stats-card-footer {
+    padding: 8px 12px;
+    border-top: 1px solid #21262d;
+    font-size: 11px;
+    color: #8b949e;
+    text-align: center;
+}
+
+.stats-card-simple {
+    padding: 10px 12px;
+}
+
+/* Legend styling */
+.legend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 10px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.6s ease-in;
+}
+
+.legend.loaded {
+    opacity: 1;
+}
+
+.legend-text {
+    color: #768390;
+}
+
+.legend-colors {
+    display: flex;
+    gap: 2px;
+}
+
+.legend-box {
+    width: 10px;
+    height: 10px;
+    border-radius: 1px;
+}
+
+/* Loading skeleton */
+.loading-skeleton {
+    display: block;
+    margin: 20px auto;
+    padding: 3px;
+}
+
+.loading-skeleton.hidden {
+    display: none;
+}
+
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 11px);
+    gap: 4px;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.skeleton-month {
+    display: inline-block;
+    margin: 0 2px;
+}
+
+.skeleton-cell {
+    width: 11px;
+    height: 11px;
+    background: #161b22;
+    border-radius: 2px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Responsive skeleton cells to match heatmap sizing */
+@media (max-width: 768px) {
+    .skeleton-grid {
+        grid-template-columns: repeat(7, 15px);
+    }
+    .skeleton-cell {
+        width: 15px;
+        height: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .skeleton-grid {
+        grid-template-columns: repeat(7, 18px);
+        gap: 5px;
+    }
+    .skeleton-cell {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+}
+
+/* Last updated timestamp styling */
+.last-updated {
+    opacity: 0;
+    transition: opacity 0.6s ease-in;
+}
+
+.last-updated.loaded {
+    opacity: 1;
+}
+
+/* ========================================================================
+   RESPONSIVE MOBILE / PORTRAIT STYLES
+   ======================================================================== */
+
+/* Wrapper for horizontal scroll on mobile */
+.heatmap-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+    margin: 17px 0;
+}
+
+/* Mobile portrait optimization */
+@media (max-width: 768px) {
+    body {
+        padding: 15px 10px;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    /* 2x2 grid layout on narrow screens */
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        max-width: 400px;
+    }
+
+    /* Ensure heatmap container scrolls horizontally */
+    .heatmap-wrapper {
+        width: 100%;
+        margin: 17px -10px; /* extend to edges */
+        padding: 0 10px;
+    }
+
+    #cal-heatmap {
+        margin: 0 auto;
+    }
+}
+
+/* Extra small screens - reduce cell size slightly */
+@media (max-width: 480px) {
+    body {
+        padding: 10px 5px;
+    }
+
+    .stats {
+        gap: 15px;
+    }
+
+    .stat {
+        font-size: 20px;
+    }
+
+    .label {
+        font-size: 11px;
+    }
+}

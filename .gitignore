@@ -19,6 +19,10 @@ htmlcov/
 *.cover
 .tox/
 
+# JavaScript/Node.js
+node_modules/
+coverage/
+
 # Runtime tracking files
 # .last_run - removed, now using JSON metadata
 
