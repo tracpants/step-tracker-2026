@@ -58,10 +58,32 @@
             margin: 0 auto;
             text-align: center;
         }
-        .stats { display: inline-flex; gap: 30px; justify-content: center; margin: 20px 0; opacity: 0; transition: opacity 0.5s ease-in; }
+        .stats {
+            display: inline-flex;
+            gap: 30px;
+            justify-content: center;
+            margin: 20px 0;
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        }
         .stats.loaded { opacity: 1; }
-        .stat { font-size: 24px; font-weight: bold; }
-        .label { font-size: 12px; color: #8b949e; }
+
+        /* Individual stat card styling */
+        .stats > div {
+            text-align: left;
+        }
+
+        .stat {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .label {
+            font-size: 12px;
+            color: #8b949e;
+            white-space: nowrap;
+        }
         #cal-heatmap { margin: 20px 0; opacity: 0; transition: opacity 0.6s ease-in; }
         #cal-heatmap.loaded { opacity: 1; }
 
@@ -338,8 +360,25 @@
             .stats {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
-                gap: 15px;
+                gap: 12px;
                 max-width: 400px;
+                width: 100%;
+                margin: 20px auto;
+                padding-bottom: 20px;
+                border-bottom: 1px solid #21262d;
+            }
+
+            /* Consistent stat card styling for grid */
+            .stats > div {
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 12px;
+                text-align: left;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 64px;
             }
 
             /* Ensure heatmap container scrolls horizontally */
@@ -361,11 +400,18 @@
             }
 
             .stats {
-                gap: 15px;
+                gap: 10px;
+                max-width: 100%;
+            }
+
+            .stats > div {
+                padding: 10px;
+                min-height: 60px;
             }
 
             .stat {
                 font-size: 20px;
+                margin-bottom: 3px;
             }
 
             .label {
