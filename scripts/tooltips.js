@@ -13,11 +13,17 @@ const formatDate = (d) => d.toLocaleDateString('en-US', {
     day: 'numeric',
 });
 
-const updateTooltipPosition = (evt) => {
-    const offset = 12;
-    const padding = 8; // Padding from viewport edges
 
-    // Get tooltip dimensions (need to show it first to measure)
+let currentTooltipTarget = null;
+
+const positionTooltip = (targetElement) => {
+    if (!targetElement) return;
+
+    const offset = 10;
+    const padding = 8;
+
+    // Get element and tooltip dimensions
+    const targetRect = targetElement.getBoundingClientRect();
     const tooltipRect = tooltipEl.getBoundingClientRect();
     const tooltipWidth = tooltipRect.width;
     const tooltipHeight = tooltipRect.height;
@@ -26,40 +32,59 @@ const updateTooltipPosition = (evt) => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Calculate initial position (bottom-right of cursor)
-    let left = evt.clientX + offset;
-    let top = evt.clientY + offset;
+    // Calculate center of target element
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const targetCenterY = targetRect.top + targetRect.height / 2;
 
-    // Check if tooltip overflows right edge
-    if (left + tooltipWidth + padding > viewportWidth) {
-        // Position to the left of cursor instead
-        left = evt.clientX - tooltipWidth - offset;
-        // Ensure it doesn't overflow left edge
-        if (left < padding) {
-            left = padding;
-        }
+    // Try to position above first (preferred)
+    let top = targetRect.top - tooltipHeight - offset;
+    let caretPosition = 'caret-bottom'; // caret points down when tooltip is above
+
+    // If doesn't fit above, flip below
+    if (top < padding) {
+        top = targetRect.bottom + offset;
+        caretPosition = 'caret-top'; // caret points up when tooltip is below
     }
 
-    // Check if tooltip overflows bottom edge
+    // Center horizontally on target
+    let left = targetCenterX - tooltipWidth / 2;
+
+    // Keep within viewport bounds horizontally
+    if (left < padding) {
+        left = padding;
+    } else if (left + tooltipWidth + padding > viewportWidth) {
+        left = viewportWidth - tooltipWidth - padding;
+    }
+
+    // Keep within viewport bounds vertically
     if (top + tooltipHeight + padding > viewportHeight) {
-        // Position above cursor instead
-        top = evt.clientY - tooltipHeight - offset;
-        // Ensure it doesn't overflow top edge
-        if (top < padding) {
-            top = padding;
-        }
+        top = viewportHeight - tooltipHeight - padding;
     }
+
+    // Remove previous caret classes
+    tooltipEl.classList.remove('caret-top', 'caret-bottom');
+    tooltipEl.classList.add(caretPosition);
 
     // Apply final position
     tooltipEl.style.left = `${left}px`;
     tooltipEl.style.top = `${top}px`;
 };
 
-const showTooltip = (html, evt) => {
+const showTooltip = (html, targetElement) => {
+    currentTooltipTarget = targetElement;
     tooltipEl.innerHTML = html;
     tooltipEl.style.display = 'block';
     tooltipEl.setAttribute('aria-hidden', 'false');
-    updateTooltipPosition(evt);
+
+    // Update position after a brief moment to ensure dimensions are calculated
+    requestAnimationFrame(() => {
+        positionTooltip(targetElement);
+        // Trigger animation
+        requestAnimationFrame(() => {
+            tooltipEl.classList.add('show');
+        });
+    });
+
     // Initialize Lucide icons in the tooltip
     if (window.lucide) {
         lucide.createIcons();
@@ -67,8 +92,15 @@ const showTooltip = (html, evt) => {
 };
 
 const hideTooltip = () => {
-    tooltipEl.style.display = 'none';
-    tooltipEl.setAttribute('aria-hidden', 'true');
+    tooltipEl.classList.remove('show');
+    currentTooltipTarget = null;
+    // Wait for animation to complete before hiding
+    setTimeout(() => {
+        if (!currentTooltipTarget) {
+            tooltipEl.style.display = 'none';
+            tooltipEl.setAttribute('aria-hidden', 'true');
+        }
+    }, 200);
 };
 
 /**
@@ -199,15 +231,26 @@ export const setupCellTooltips = (chartData, stats) => {
         const plainTextTitle = `${isMaxDay ? 'Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
         cell.setAttribute('title', plainTextTitle);
 
-        // Custom tooltip handlers
-        cell.addEventListener('mouseenter', (evt) => showTooltip(tooltipHtml, evt));
-        cell.addEventListener('mousemove', updateTooltipPosition);
+        // Custom tooltip handlers - use target element for positioning
+        cell.addEventListener('mouseenter', () => showTooltip(tooltipHtml, cell));
         cell.addEventListener('mouseleave', hideTooltip);
+        // Support touch devices
+        cell.addEventListener('touchstart', (evt) => {
+            evt.preventDefault();
+            showTooltip(tooltipHtml, cell);
+        });
     });
 
     // If you leave the SVG entirely, hide tooltip
     const svg = document.querySelector('#cal-heatmap svg');
     if (svg) svg.addEventListener('mouseleave', hideTooltip);
+
+    // Tap outside to dismiss
+    document.addEventListener('click', (evt) => {
+        if (currentTooltipTarget && !tooltipEl.contains(evt.target) && !currentTooltipTarget.contains(evt.target)) {
+            hideTooltip();
+        }
+    });
 };
 
 /**
@@ -262,7 +305,7 @@ export const setupMonthTooltips = (monthlyTotals) => {
                 stats: monthStats
             });
 
-            label.addEventListener('mouseenter', (evt) => {
+            label.addEventListener('mouseenter', () => {
                 // Track month tooltip interaction
                 if (window.goatcounter && window.goatcounter.count) {
                     window.goatcounter.count({
@@ -271,170 +314,12 @@ export const setupMonthTooltips = (monthlyTotals) => {
                         event: true
                     });
                 }
-                showTooltip(monthTooltipHtml, evt);
+                showTooltip(monthTooltipHtml, label);
             });
-            label.addEventListener('mousemove', updateTooltipPosition);
             label.addEventListener('mouseleave', hideTooltip);
+            label.addEventListener('click', () => showTooltip(monthTooltipHtml, label));
             label.style.cursor = 'help';
         }
     });
 };
 
-/**
- * Setup tooltips for statistics cards
- * @param {Object} stats - Calculated statistics
- */
-export const setupStatTooltips = (stats) => {
-    const totalStepsEl = document.getElementById('total-steps');
-    const dailyAverageEl = document.getElementById('daily-average');
-    const streakEl = document.getElementById('current-streak');
-    const goalPercentageEl = document.getElementById('goal-percentage');
-
-    if (totalStepsEl) {
-        const totalStepsTooltipHtml = renderStatsCard({
-            title: 'Total Steps',
-            stats: [
-                {
-                    icon: 'footprints',
-                    label: 'Steps',
-                    value: fmt(stats.total)
-                },
-                {
-                    icon: 'map-pin',
-                    label: 'Distance',
-                    value: `${stats.totalKm.toFixed(1)} km`
-                }
-            ]
-        });
-        totalStepsEl.addEventListener('mouseenter', (evt) => {
-            // Track total steps tooltip interaction
-            if (window.goatcounter && window.goatcounter.count) {
-                window.goatcounter.count({
-                    path: 'stat-tooltip-total-steps',
-                    title: 'Total Steps Tooltip Viewed',
-                    event: true
-                });
-            }
-            showTooltip(totalStepsTooltipHtml, evt);
-        });
-        totalStepsEl.addEventListener('mousemove', updateTooltipPosition);
-        totalStepsEl.addEventListener('mouseleave', hideTooltip);
-        totalStepsEl.style.cursor = 'help';
-    }
-
-    if (dailyAverageEl) {
-        const dailyAverageTooltipHtml = renderStatsCard({
-            title: 'Daily Average',
-            stats: [
-                {
-                    icon: 'bar-chart-3',
-                    label: 'Steps per day',
-                    value: fmt(stats.dailyAverage)
-                },
-                {
-                    icon: 'map-pin',
-                    label: 'Distance per day',
-                    value: `${stats.averageKm} km`
-                }
-            ]
-        });
-        dailyAverageEl.addEventListener('mouseenter', (evt) => {
-            // Track daily average tooltip interaction
-            if (window.goatcounter && window.goatcounter.count) {
-                window.goatcounter.count({
-                    path: 'stat-tooltip-daily-average',
-                    title: 'Daily Average Tooltip Viewed',
-                    event: true
-                });
-            }
-            showTooltip(dailyAverageTooltipHtml, evt);
-        });
-        dailyAverageEl.addEventListener('mousemove', updateTooltipPosition);
-        dailyAverageEl.addEventListener('mouseleave', hideTooltip);
-        dailyAverageEl.style.cursor = 'help';
-    }
-
-    if (streakEl && stats.streak > 0 && stats.streakStartDate && stats.streakEndDate) {
-        const formatStreakDate = (dateStr) => {
-            const date = new Date(dateStr + 'T00:00:00');
-            return date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
-        };
-
-        let dateRange;
-        if (stats.streakStartDate === stats.streakEndDate) {
-            // Single day streak
-            dateRange = formatStreakDate(stats.streakStartDate);
-        } else {
-            // Multi-day streak
-            dateRange = `${formatStreakDate(stats.streakStartDate)} - ${formatStreakDate(stats.streakEndDate)}`;
-        }
-
-        const streakTooltipHtml = renderStatsCard({
-            title: '10k+ Streak',
-            stats: [
-                {
-                    icon: 'flame',
-                    label: 'Current streak',
-                    value: `${stats.streak} ${stats.streak === 1 ? 'day' : 'days'}`
-                },
-                {
-                    icon: 'calendar',
-                    label: 'Period',
-                    value: dateRange
-                }
-            ]
-        });
-
-        streakEl.addEventListener('mouseenter', (evt) => {
-            // Track streak tooltip interaction
-            if (window.goatcounter && window.goatcounter.count) {
-                window.goatcounter.count({
-                    path: 'stat-tooltip-streak',
-                    title: `Streak Tooltip Viewed: ${stats.streak} day streak`,
-                    event: true
-                });
-            }
-            showTooltip(streakTooltipHtml, evt);
-        });
-        streakEl.addEventListener('mousemove', updateTooltipPosition);
-        streakEl.addEventListener('mouseleave', hideTooltip);
-        streakEl.style.cursor = 'help';
-    }
-
-    if (goalPercentageEl) {
-        const successRate = stats.dayOfYear > 0 ? Math.round((stats.daysWithGoal / stats.dayOfYear) * 100) : 0;
-        const goalPercentageTooltipHtml = renderStatsCard({
-            title: 'Year Progress',
-            stats: [
-                {
-                    icon: 'calendar',
-                    label: 'Year Progress',
-                    value: `${stats.goalPercentage}%`
-                },
-                {
-                    icon: 'percent',
-                    label: 'Success Rate',
-                    value: `${successRate}%`
-                }
-            ]
-        });
-        goalPercentageEl.addEventListener('mouseenter', (evt) => {
-            // Track goal percentage tooltip interaction
-            if (window.goatcounter && window.goatcounter.count) {
-                window.goatcounter.count({
-                    path: 'stat-tooltip-goal-percentage',
-                    title: 'Goal Percentage Tooltip Viewed',
-                    event: true
-                });
-            }
-            showTooltip(goalPercentageTooltipHtml, evt);
-        });
-        goalPercentageEl.addEventListener('mousemove', updateTooltipPosition);
-        goalPercentageEl.addEventListener('mouseleave', hideTooltip);
-        goalPercentageEl.style.cursor = 'help';
-    }
-};

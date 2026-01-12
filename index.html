@@ -118,6 +118,42 @@
 
     <div id="step-tooltip" role="tooltip" aria-hidden="true"></div>
 
-    <script type="module" src="./scripts/main.js?v=1736600000"></script>
+    <!-- Desktop Popover for Stat Details -->
+    <div id="stat-popover" class="stat-popover" role="dialog" aria-hidden="true">
+        <div class="stat-popover-header">
+            <span id="stat-popover-title"></span>
+            <span id="stat-popover-timeframe" class="stat-popover-timeframe"></span>
+        </div>
+        <div class="stat-popover-hero">
+            <div id="stat-popover-hero-value" class="stat-popover-hero-value"></div>
+            <div id="stat-popover-hero-label" class="stat-popover-hero-label"></div>
+        </div>
+        <div class="stat-popover-details">
+            <div id="stat-popover-details-content"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Sheet for Stat Details -->
+    <div id="stat-sheet-backdrop" class="stat-sheet-backdrop"></div>
+    <div id="stat-sheet" class="stat-sheet" role="dialog" aria-hidden="true">
+        <div class="stat-sheet-content">
+            <div class="stat-sheet-header">
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <h2 id="stat-sheet-title" class="stat-sheet-title"></h2>
+                    <span id="stat-sheet-timeframe" class="stat-sheet-timeframe"></span>
+                </div>
+                <button id="stat-sheet-close" class="stat-sheet-close-button" aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="stat-sheet-hero">
+                <div id="stat-sheet-hero-value" class="stat-sheet-hero-value"></div>
+                <div id="stat-sheet-hero-label" class="stat-sheet-hero-label"></div>
+            </div>
+            <div id="stat-sheet-details" class="stat-sheet-details"></div>
+        </div>
+    </div>
+
+    <script type="module" src="./scripts/main.js?v=1736700000"></script>
 </body>
 </html>
