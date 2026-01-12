@@ -1685,19 +1685,26 @@
             sheetCloseButton.addEventListener('click', closeStatSheet);
         }
 
-        // Determine data source - R2 or local with fallback
-        const primaryUrl = window.CONFIG?.R2_DATA_URL || './steps_data.json';
-        const fallbackUrl = './steps_data.json';
+        // Load data from R2 (primary data source)
+        const dataUrl = window.CONFIG?.R2_DATA_URL;
         
-        const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => r.json());
+        if (!dataUrl) {
+            console.error('R2_DATA_URL not configured in config.js');
+            document.getElementById("total-steps").innerText = "Config Error";
+            document.getElementById("daily-average").innerText = "Config Error";
+            document.getElementById("current-streak").innerText = "Config Error";
+            document.getElementById("goal-percentage").innerText = "Config Error";
+            return;
+        }
         
-        // Try R2 first, fall back to local if it fails
-        const dataPromise = primaryUrl !== fallbackUrl ? 
-            fetchData(primaryUrl).catch(err => {
-                console.log('R2 fetch failed, falling back to local data:', err.message);
-                return fetchData(fallbackUrl);
-            }) :
-            fetchData(primaryUrl);
+        const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+        });
+        
+        const dataPromise = fetchData(dataUrl);
             
         dataPromise.then(jsonData => {
             // Handle new structure with metadata, or legacy flat structure
@@ -2322,6 +2329,17 @@
                 }
 
             }, 500);
+        }).catch(error => {
+            console.error('Failed to load step data from R2:', error);
+            document.getElementById("total-steps").innerText = "Load Error";
+            document.getElementById("daily-average").innerText = "Load Error";
+            document.getElementById("current-streak").innerText = "Load Error";
+            document.getElementById("goal-percentage").innerText = "Load Error";
+            document.getElementById("last-updated").innerText = "Failed to load data - check R2 configuration";
+            
+            // Hide loading skeleton and show error state
+            const skeleton = document.getElementById('loading-skeleton');
+            if (skeleton) skeleton.classList.add('hidden');
         });
     </script>
 </body>

@@ -25,15 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure data file exists for fallback
+      - name: Verify R2 configuration
         run: |
-          # Only create placeholder if no real data file exists (preserves committed data)
-          if [ ! -f steps_data.json ]; then
-            echo '{"metadata":{"lastUpdated":"2026-01-01T00:00:00Z","timezone":"Australia/Sydney","note":"Fallback data - configure R2 for live data"},"data":{}}' > steps_data.json
-            echo "Created placeholder data file for fallback"
-          else
-            echo "Using existing data file for GitHub Pages fallback"
-          fi
+          echo "Static site deployment - data will be loaded from R2"
+          echo "No local data file needed for GitHub Pages"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

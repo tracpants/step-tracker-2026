@@ -86,20 +86,18 @@ class TestHealthcheckFunctions:
 class TestR2Functions:
     def test_upload_to_r2_no_config(self):
         """Test R2 upload when no configuration is provided"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            f.write('{"test": "data"}')
-            f.flush()
-            
-            # Test without R2 configuration
-            result = upload_to_r2(f.name, f.name)
-            
-            assert result is False
-            os.unlink(f.name)
+        test_data = {"metadata": {"lastUpdated": "2026-01-01T00:00:00Z"}, "data": {"2026-01-01": {"steps": 1000, "km": 0.8}}}
+        test_config = "window.CONFIG = { TIMEZONE: 'UTC' };"
+        
+        # Test without R2 configuration
+        result = upload_to_r2(test_data, test_config)
+        
+        assert result is False
     
     def test_download_from_r2_no_config(self):
         """Test R2 download when no configuration is provided"""
-        result = download_from_r2('test.json')
-        assert result is False
+        result = download_from_r2()
+        assert result is None
     
     @patch.dict(os.environ, {
         'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
@@ -113,15 +111,13 @@ class TestR2Functions:
         mock_s3_client = MagicMock()
         mock_boto_client.return_value = mock_s3_client
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            f.write('{"data": {"2026-01-01": {"steps": 5000, "km": 3.2}}}')
-            f.flush()
-            
-            result = upload_to_r2(f.name, f.name)
-            
-            assert result is True
-            assert mock_s3_client.upload_file.call_count == 2  # json and js files
-            os.unlink(f.name)
+        test_data = {"metadata": {"lastUpdated": "2026-01-01T00:00:00Z"}, "data": {"2026-01-01": {"steps": 5000, "km": 3.2}}}
+        test_config = "window.CONFIG = { TIMEZONE: 'UTC' };"
+        
+        result = upload_to_r2(test_data, test_config)
+        
+        assert result is True
+        assert mock_s3_client.put_object.call_count == 2  # json and js files
     
     @patch.dict(os.environ, {
         'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
@@ -135,10 +131,16 @@ class TestR2Functions:
         mock_s3_client = MagicMock()
         mock_boto_client.return_value = mock_s3_client
         
-        result = download_from_r2('test.json')
+        # Mock the response object
+        mock_response = MagicMock()
+        test_data = {"metadata": {"lastUpdated": "2026-01-01T00:00:00Z"}, "data": {"2026-01-01": {"steps": 5000, "km": 3.2}}}
+        mock_response['Body'].read.return_value = json.dumps(test_data).encode('utf-8')
+        mock_s3_client.get_object.return_value = mock_response
         
-        assert result is True
-        mock_s3_client.download_file.assert_called_once_with('test-bucket', 'steps_data.json', 'test.json')
+        result = download_from_r2()
+        
+        assert result == test_data
+        mock_s3_client.get_object.assert_called_once_with(Bucket='test-bucket', Key='steps_data.json')
 
 
 class TestDataProcessing:

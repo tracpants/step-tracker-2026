@@ -56,8 +56,8 @@ def send_healthcheck_failure(error_message=None):
 
 # Git functions removed - using R2 for data storage instead
 
-def upload_to_r2(json_path, config_path):
-    """Upload data files to Cloudflare R2"""
+def upload_to_r2(json_data, config_content):
+    """Upload data directly to Cloudflare R2"""
     try:
         # Get R2 configuration from environment
         r2_endpoint = os.getenv("R2_ENDPOINT_URL")
@@ -81,38 +81,31 @@ def upload_to_r2(json_path, config_path):
         
         uploaded_files = []
         
-        # Upload steps_data.json if it exists and has content
-        if os.path.exists(json_path):
+        # Upload steps_data.json if data provided
+        if json_data and (json_data.get('data') or json_data.get('metadata')):
             try:
-                with open(json_path, 'r') as f:
-                    data = json.load(f)
-                    # Only upload if we have actual data (not empty)
-                    if data.get('data') or data.get('metadata'):
-                        s3_client.upload_file(
-                            json_path, 
-                            r2_bucket, 
-                            'steps_data.json',
-                            ExtraArgs={
-                                'ContentType': 'application/json',
-                                'CacheControl': 'max-age=300'  # 5 minute cache
-                            }
-                        )
-                        uploaded_files.append('steps_data.json')
-                        logging.info(f"Uploaded steps_data.json to R2: {len(data.get('data', {}))} days tracked")
-            except (json.JSONDecodeError, ClientError) as e:
+                json_content = json.dumps(json_data, indent=2)
+                s3_client.put_object(
+                    Bucket=r2_bucket,
+                    Key='steps_data.json',
+                    Body=json_content,
+                    ContentType='application/json',
+                    CacheControl='max-age=300'  # 5 minute cache
+                )
+                uploaded_files.append('steps_data.json')
+                logging.info(f"Uploaded steps_data.json to R2: {len(json_data.get('data', {}))} days tracked")
+            except ClientError as e:
                 logging.error(f"Failed to upload steps_data.json: {e}")
         
-        # Upload config.js if it exists
-        if os.path.exists(config_path):
+        # Upload config.js if content provided
+        if config_content:
             try:
-                s3_client.upload_file(
-                    config_path,
-                    r2_bucket,
-                    'config.js',
-                    ExtraArgs={
-                        'ContentType': 'application/javascript',
-                        'CacheControl': 'max-age=3600'  # 1 hour cache
-                    }
+                s3_client.put_object(
+                    Bucket=r2_bucket,
+                    Key='config.js',
+                    Body=config_content,
+                    ContentType='application/javascript',
+                    CacheControl='max-age=3600'  # 1 hour cache
                 )
                 uploaded_files.append('config.js')
                 logging.info("Uploaded config.js to R2")
@@ -130,8 +123,8 @@ def upload_to_r2(json_path, config_path):
         logging.error(f"R2 upload failed: {e}")
         return False
 
-def download_from_r2(json_path):
-    """Download existing data file from R2"""
+def download_from_r2():
+    """Download existing data from R2 and return as dict"""
     try:
         r2_endpoint = os.getenv("R2_ENDPOINT_URL")
         r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
@@ -140,7 +133,7 @@ def download_from_r2(json_path):
         
         if not all([r2_endpoint, r2_access_key, r2_secret_key]):
             logging.info("R2 not configured - starting with empty data")
-            return False
+            return None
         
         s3_client = boto3.client(
             's3',
@@ -151,19 +144,21 @@ def download_from_r2(json_path):
         )
         
         try:
-            s3_client.download_file(r2_bucket, 'steps_data.json', json_path)
+            response = s3_client.get_object(Bucket=r2_bucket, Key='steps_data.json')
+            json_content = response['Body'].read().decode('utf-8')
+            data = json.loads(json_content)
             logging.info("Downloaded existing data from R2")
-            return True
+            return data
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchKey':
                 logging.info("No existing data file in R2 - starting fresh")
             else:
                 logging.warning(f"Failed to download from R2: {e}")
-            return False
+            return None
             
     except Exception as e:
         logging.warning(f"R2 download failed: {e}")
-        return False
+        return None
 
 def main():
     load_dotenv()
@@ -181,11 +176,8 @@ def main():
         # Signal the start of script execution
         send_healthcheck_start()
         
-        # Set up file paths
-        json_path = os.path.join(repo_path, "steps_data.json")
-        
         # Download existing data from R2 (if configured)
-        download_from_r2(json_path)
+        existing_r2_data = download_from_r2()
 
         logging.info("Authenticating with Garmin...")
         garmin = Garmin(email, password)
@@ -202,18 +194,15 @@ def main():
         # Read existing data to determine what dates we need to fetch
         existing_data = {}
         existing_metadata = {}
-        if os.path.exists(json_path):
-            with open(json_path, "r") as f:
-                json_content = json.load(f)
-                
-                # Handle new structure with metadata, or legacy flat structure
-                if isinstance(json_content, dict) and "data" in json_content and "metadata" in json_content:
-                    # New structure
-                    existing_data = json_content["data"]
-                    existing_metadata = json_content["metadata"]
-                else:
-                    # Legacy structure - treat entire content as data
-                    existing_data = json_content
+        if existing_r2_data:
+            # Handle new structure with metadata, or legacy flat structure
+            if isinstance(existing_r2_data, dict) and "data" in existing_r2_data and "metadata" in existing_r2_data:
+                # New structure
+                existing_data = existing_r2_data["data"]
+                existing_metadata = existing_r2_data["metadata"]
+            else:
+                # Legacy structure - treat entire content as data
+                existing_data = existing_r2_data
         
         # Check last update time from JSON metadata to avoid redundant API calls
         last_run_date = None
@@ -346,6 +335,7 @@ def main():
         if total_changes == 0:
             logging.info("No new step data to update.")
             steps_updated = False
+            output_data = None
         else:
             # Create new JSON structure with metadata
             output_data = {
@@ -355,15 +345,10 @@ def main():
                 },
                 "data": data_points
             }
-            with open(json_path, "w") as f:
-                json.dump(output_data, f, indent=2)
             logging.info(f"Database updated. {total_changes} days updated. Total days tracked: {len(data_points)}")
             steps_updated = True
 
         # Generate config.js with timezone and R2 URL settings
-        config_path = os.path.join(repo_path, "config.js")
-        config_changed = False
-        
         # Build config object
         config_obj = {
             'TIMEZONE': timezone_str
@@ -380,36 +365,27 @@ def main():
             # Use direct R2 endpoint (requires CORS setup)
             config_obj['R2_DATA_URL'] = f"{r2_endpoint.rstrip('/')}/{r2_bucket}/steps_data.json"
         
-        # Generate expected config content
+        # Generate config content
         config_lines = ["window.CONFIG = {"]
         config_items = list(config_obj.items())
         for i, (key, value) in enumerate(config_items):
             comma = "," if i < len(config_items) - 1 else ""
             config_lines.append(f"    {key}: '{value}'{comma}")
         config_lines.append("};")
-        expected_config = "\n".join(config_lines) + "\n"
+        config_content = "\n".join(config_lines) + "\n"
         
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                current_config = f.read()
-                if current_config != expected_config:
-                    config_changed = True
-        else:
-            config_changed = True
-
-        if config_changed:
-            with open(config_path, "w") as f:
-                f.write(expected_config)
-            logging.info(f"Config file updated with timezone: {timezone_str}")
-            if 'R2_DATA_URL' in config_obj:
-                logging.info(f"Config file updated with R2 URL: {config_obj['R2_DATA_URL']}")
+        # Always generate fresh config (no local file dependency)
+        config_changed = True
+        logging.info(f"Generated config with timezone: {timezone_str}")
+        if 'R2_DATA_URL' in config_obj:
+            logging.info(f"Generated config with R2 URL: {config_obj['R2_DATA_URL']}")
 
         # Upload data changes to R2 instead of git commits
         data_changes = steps_updated or config_changed
         
         if data_changes:
-            # Upload to R2
-            upload_success = upload_to_r2(json_path, config_path)
+            # Upload to R2 directly without local files
+            upload_success = upload_to_r2(output_data, config_content)
             if upload_success:
                 logging.info("Data successfully uploaded to R2")
             else:

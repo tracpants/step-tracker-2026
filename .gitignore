@@ -22,8 +22,7 @@ htmlcov/
 # Runtime tracking files
 # .last_run - removed, now using JSON metadata
 
-# Generated data
-steps_data.json  # Lives in gh-pages branch only, copied temporarily during updates
+# Note: steps_data.json stored in Cloudflare R2, not in git
 
 # Claude AI files
 .claude/
