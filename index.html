@@ -1694,17 +1694,15 @@
             document.getElementById("daily-average").innerText = "Config Error";
             document.getElementById("current-streak").innerText = "Config Error";
             document.getElementById("goal-percentage").innerText = "Config Error";
-            return;
-        }
-        
-        const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => {
-            if (!r.ok) {
-                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-            }
-            return r.json();
-        });
-        
-        const dataPromise = fetchData(dataUrl);
+        } else {
+            const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                }
+                return r.json();
+            });
+            
+            const dataPromise = fetchData(dataUrl);
             
         dataPromise.then(jsonData => {
             // Handle new structure with metadata, or legacy flat structure
@@ -2341,6 +2339,7 @@
             const skeleton = document.getElementById('loading-skeleton');
             if (skeleton) skeleton.classList.add('hidden');
         });
+        }
     </script>
 </body>
 </html>
