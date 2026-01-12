@@ -160,6 +160,41 @@ def download_from_r2():
         logging.warning(f"R2 download failed: {e}")
         return None
 
+def download_config_from_r2():
+    """Download existing config.js from R2 and return as string"""
+    try:
+        r2_endpoint = os.getenv("R2_ENDPOINT_URL")
+        r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
+        r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
+        
+        if not all([r2_endpoint, r2_access_key, r2_secret_key]):
+            return None
+        
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint,
+            aws_access_key_id=r2_access_key,
+            aws_secret_access_key=r2_secret_key,
+            region_name='auto'
+        )
+        
+        try:
+            response = s3_client.get_object(Bucket=r2_bucket, Key='config.js')
+            config_content = response['Body'].read().decode('utf-8')
+            logging.info("Downloaded existing config from R2")
+            return config_content
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                logging.info("No existing config file in R2 - will create new")
+            else:
+                logging.warning(f"Failed to download config from R2: {e}")
+            return None
+            
+    except Exception as e:
+        logging.warning(f"R2 config download failed: {e}")
+        return None
+
 def main():
     load_dotenv()
     email = os.getenv("GARMIN_EMAIL")
@@ -374,18 +409,25 @@ def main():
         config_lines.append("};")
         config_content = "\n".join(config_lines) + "\n"
         
-        # Always generate fresh config (no local file dependency)
-        config_changed = True
-        logging.info(f"Generated config with timezone: {timezone_str}")
-        if 'R2_DATA_URL' in config_obj:
-            logging.info(f"Generated config with R2 URL: {config_obj['R2_DATA_URL']}")
+        # Check if config has actually changed by comparing with R2 version
+        existing_config = download_config_from_r2()
+        config_changed = existing_config != config_content
+        
+        if config_changed:
+            logging.info(f"Config changed - updating with timezone: {timezone_str}")
+            if 'R2_DATA_URL' in config_obj:
+                logging.info(f"Config changed - updating with R2 URL: {config_obj['R2_DATA_URL']}")
+        else:
+            logging.info("Config unchanged - skipping upload")
 
         # Upload data changes to R2 instead of git commits
         data_changes = steps_updated or config_changed
         
         if data_changes:
             # Upload to R2 directly without local files
-            upload_success = upload_to_r2(output_data, config_content)
+            # Only pass config_content if config actually changed
+            config_to_upload = config_content if config_changed else None
+            upload_success = upload_to_r2(output_data, config_to_upload)
             if upload_success:
                 logging.info("Data successfully uploaded to R2")
             else:
