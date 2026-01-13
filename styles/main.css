@@ -407,24 +407,21 @@ body {
 
 /* Wrapper for horizontal scroll on mobile */
 .heatmap-wrapper {
-    position: relative; /* Ensure scroll shadows stay fixed at edges */
+    position: relative; /* Establishes positioning context for absolutely positioned shadows */
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
     margin: 17px 0;
-    display: flex; /* Establish flex container for proper shadow positioning */
 }
 
-/* Scroll indicators for mobile heatmap - using sticky positioning */
+/* Scroll indicators for mobile heatmap - positioned at viewport edges */
 .heatmap-wrapper::before,
 .heatmap-wrapper::after {
     content: '';
-    position: sticky;
+    position: absolute; /* Absolute positioning keeps shadows at viewport edges */
     top: 0;
-    flex-shrink: 0;
+    bottom: 0;
     width: 20px;
-    height: 100%;
-    align-self: stretch;
     pointer-events: none;
     z-index: 10;
     opacity: 0;
@@ -432,16 +429,12 @@ body {
 }
 
 .heatmap-wrapper::before {
-    left: 0;
-    order: -1; /* Ensure it appears first */
-    margin-right: -20px; /* Overlap with content */
+    left: 0; /* Anchored to left viewport edge */
     background: linear-gradient(to right, #0d1117 0%, transparent 100%);
 }
 
 .heatmap-wrapper::after {
-    right: 0;
-    order: 999; /* Ensure it appears last */
-    margin-left: -20px; /* Overlap with content */
+    right: 0; /* Anchored to right viewport edge */
     background: linear-gradient(to left, #0d1117 0%, transparent 100%);
 }
 
@@ -505,12 +498,11 @@ body {
         width: 100%;
         margin: 17px 0; /* remove negative margin that extends beyond viewport */
         padding: 0;
-        justify-content: flex-start; /* Allow content to overflow for scrolling */
     }
 
     #cal-heatmap {
         margin: 0;
-        flex: 0 0 auto; /* Don't grow or shrink, maintain natural size */
+        display: inline-block; /* Maintain natural size for horizontal scrolling */
     }
 }
 
