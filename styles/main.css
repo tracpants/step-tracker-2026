@@ -406,11 +406,11 @@ body {
 
 /* Wrapper for horizontal scroll on mobile */
 .heatmap-wrapper {
+    position: relative; /* Ensure scroll shadows stay fixed at edges */
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
     margin: 17px 0;
-    position: relative;
 }
 
 /* Scroll indicators for mobile heatmap */
