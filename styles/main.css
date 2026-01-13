@@ -69,6 +69,7 @@ body {
     padding: 3px;
     margin: 17px auto; /* keep roughly the same visual spacing as 20px */
     display: inline-block;
+    flex: 0 0 auto; /* Work as flex child without growing/shrinking */
 }
 
 /* SVG-friendly highlight for the max-step day (box-shadow doesn't apply to SVG rects) */
@@ -411,29 +412,36 @@ body {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
     margin: 17px 0;
+    display: flex; /* Establish flex container for proper shadow positioning */
 }
 
-/* Scroll indicators for mobile heatmap */
+/* Scroll indicators for mobile heatmap - using sticky positioning */
 .heatmap-wrapper::before,
 .heatmap-wrapper::after {
     content: '';
-    position: absolute;
+    position: sticky;
     top: 0;
-    bottom: 0;
+    flex-shrink: 0;
     width: 20px;
+    height: 100%;
+    align-self: stretch;
     pointer-events: none;
-    z-index: 1;
+    z-index: 10;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .heatmap-wrapper::before {
     left: 0;
+    order: -1; /* Ensure it appears first */
+    margin-right: -20px; /* Overlap with content */
     background: linear-gradient(to right, #0d1117 0%, transparent 100%);
 }
 
 .heatmap-wrapper::after {
     right: 0;
+    order: 999; /* Ensure it appears last */
+    margin-left: -20px; /* Overlap with content */
     background: linear-gradient(to left, #0d1117 0%, transparent 100%);
 }
 
@@ -497,10 +505,12 @@ body {
         width: 100%;
         margin: 17px 0; /* remove negative margin that extends beyond viewport */
         padding: 0;
+        justify-content: flex-start; /* Allow content to overflow for scrolling */
     }
 
     #cal-heatmap {
-        margin: 0 auto;
+        margin: 0;
+        flex: 0 0 auto; /* Don't grow or shrink, maintain natural size */
     }
 }
 
