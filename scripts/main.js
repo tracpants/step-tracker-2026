@@ -4,7 +4,7 @@
 
 import { loadStepData, processChartData } from './dataLoader.js';
 import { calculateStats, formatLastUpdated } from './stats.js';
-import { initHeatmap, setupHeatmapTracking } from './heatmap.js';
+import { initHeatmap, setupHeatmapTracking, setupHeatmapScrollIndicators } from './heatmap.js';
 import { setupCellTooltips, setupMonthTooltips } from './tooltips.js';
 import { shouldUseDesktopPopover, openStatPopover, initPopoverListeners } from './popover.js';
 import { openStatSheet, initBottomSheetListeners } from './bottomSheet.js';
@@ -192,6 +192,7 @@ const init = async () => {
             setupCellTooltips(chartData, stats);
             setupMonthTooltips(stats.monthlyTotals);
             setupStatCardInteractions(data, stats);
+            setupHeatmapScrollIndicators();
         }, 500);
 
     } catch (error) {

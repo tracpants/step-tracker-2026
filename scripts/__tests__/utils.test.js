@@ -49,7 +49,7 @@ describe('utils', () => {
         configurable: true,
         value: 400
       });
-      expect(getResponsiveCellConfig()).toEqual({ width: 18, height: 18, gutter: 5 });
+      expect(getResponsiveCellConfig()).toEqual({ width: 24, height: 24, gutter: 5 });
     });
 
     it('returns medium cells for tablets (≤768px)', () => {
@@ -58,7 +58,7 @@ describe('utils', () => {
         configurable: true,
         value: 600
       });
-      expect(getResponsiveCellConfig()).toEqual({ width: 15, height: 15, gutter: 4 });
+      expect(getResponsiveCellConfig()).toEqual({ width: 20, height: 20, gutter: 4 });
     });
 
     it('returns standard cells for desktop (>768px)', () => {

@@ -2,7 +2,7 @@
  * Heatmap rendering module
  */
 
-import { getResponsiveCellConfig } from './utils.js';
+import { getResponsiveCellConfig, isMobileDevice } from './utils.js';
 
 /**
  * Initialize and paint the calendar heatmap
@@ -74,4 +74,41 @@ export const setupHeatmapTracking = (cal) => {
             });
         }
     });
+};
+
+/**
+ * Setup scroll indicators for mobile heatmap
+ */
+export const setupHeatmapScrollIndicators = () => {
+    if (!isMobileDevice()) return; // Only on mobile devices
+
+    const wrapper = document.querySelector('.heatmap-wrapper');
+    if (!wrapper) return;
+
+    const updateScrollIndicators = () => {
+        const { scrollLeft, scrollWidth, clientWidth } = wrapper;
+        
+        // Show left indicator if we can scroll left
+        if (scrollLeft > 10) {
+            wrapper.classList.add('scrollable-left');
+        } else {
+            wrapper.classList.remove('scrollable-left');
+        }
+        
+        // Show right indicator if we can scroll right
+        if (scrollLeft + clientWidth < scrollWidth - 10) {
+            wrapper.classList.add('scrollable-right');
+        } else {
+            wrapper.classList.remove('scrollable-right');
+        }
+    };
+
+    // Update indicators on scroll
+    wrapper.addEventListener('scroll', updateScrollIndicators);
+    
+    // Update indicators when content loads or window resizes
+    window.addEventListener('resize', updateScrollIndicators);
+    
+    // Initial check
+    setTimeout(updateScrollIndicators, 100);
 };

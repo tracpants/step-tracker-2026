@@ -2,7 +2,7 @@
  * Mobile bottom sheet management module
  */
 
-import { fmt, renderIcon } from './utils.js';
+import { fmt, renderIcon, triggerHapticFeedback } from './utils.js';
 
 let currentSelectedStat = null;
 let isSheetOpen = false;
@@ -18,6 +18,9 @@ const sheet = document.getElementById('stat-sheet');
 export const openStatSheet = (statType, data) => {
     currentSelectedStat = statType;
     isSheetOpen = true;
+
+    // Trigger haptic feedback for sheet opening
+    triggerHapticFeedback('light');
 
     // Populate the sheet content based on stat type
     populateStatSheet(statType, data);
@@ -192,4 +195,31 @@ export const initBottomSheetListeners = () => {
     if (sheetCloseButton) {
         sheetCloseButton.addEventListener('click', closeStatSheet);
     }
+
+    // Keyboard navigation support
+    document.addEventListener('keydown', (evt) => {
+        if (isSheetOpen && evt.key === 'Escape') {
+            closeStatSheet();
+        }
+    });
+
+    // Focus management - focus close button when sheet opens
+    const originalFocusedElement = document.activeElement;
+    const focusCloseButton = () => {
+        if (isSheetOpen && sheetCloseButton) {
+            sheetCloseButton.focus();
+        }
+    };
+
+    // Store the originally focused element when sheet opens
+    sheet.addEventListener('transitionend', () => {
+        if (isSheetOpen) {
+            focusCloseButton();
+        } else {
+            // Return focus to the originally focused element when sheet closes
+            if (originalFocusedElement && originalFocusedElement.focus) {
+                originalFocusedElement.focus();
+            }
+        }
+    });
 };

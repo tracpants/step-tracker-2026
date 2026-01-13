@@ -25,13 +25,13 @@ export const renderIcon = (iconName) => {
 export const getResponsiveCellConfig = () => {
     const width = window.innerWidth;
 
-    // Mobile phones (≤480px): Larger cells for easier tapping
+    // Mobile phones (≤480px): Larger cells for easier tapping (minimum 24px for accessibility)
     if (width <= 480) {
-        return { width: 18, height: 18, gutter: 5 };
+        return { width: 24, height: 24, gutter: 5 };
     }
     // Tablets (≤768px): Medium cells
     else if (width <= 768) {
-        return { width: 15, height: 15, gutter: 4 };
+        return { width: 20, height: 20, gutter: 4 };
     }
     // Desktop: Standard cells
     else {
@@ -50,6 +50,33 @@ export const safeExecute = async (fn, context = 'operation') => {
     } catch (error) {
         console.error(`Error in ${context}:`, error);
         return null;
+    }
+};
+
+/**
+ * Detect if the device is mobile (no hover capability or narrow screen)
+ * @returns {boolean} True if device is mobile
+ */
+export const isMobileDevice = () => {
+    // Check for hover capability and screen width
+    const hasHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const isNarrowScreen = window.innerWidth <= 768;
+    return !hasHover || isNarrowScreen;
+};
+
+/**
+ * Trigger haptic feedback if available (iOS Safari, Chrome Android)
+ * @param {string} type - Type of haptic: 'light', 'medium', 'heavy'
+ */
+export const triggerHapticFeedback = (type = 'light') => {
+    if ('vibrate' in navigator && isMobileDevice()) {
+        // Simple vibration patterns for different feedback types
+        const patterns = {
+            light: [10],
+            medium: [20],
+            heavy: [30]
+        };
+        navigator.vibrate(patterns[type] || patterns.light);
     }
 };
 

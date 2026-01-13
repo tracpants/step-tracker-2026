@@ -2,7 +2,7 @@
  * Tooltip management module
  */
 
-import { fmt, renderStatsCard } from './utils.js';
+import { fmt, renderStatsCard, isMobileDevice, triggerHapticFeedback } from './utils.js';
 
 const tooltipEl = document.getElementById('step-tooltip');
 
@@ -231,26 +231,39 @@ export const setupCellTooltips = (chartData, stats) => {
         const plainTextTitle = `${isMaxDay ? 'Personal Best! ' : ''}${steps ? fmt(steps) : 'No'} steps${km > 0 ? ` (${km} km)` : ''} on ${formatDate(cellDate)}`;
         cell.setAttribute('title', plainTextTitle);
 
-        // Custom tooltip handlers - use target element for positioning
-        cell.addEventListener('mouseenter', () => showTooltip(tooltipHtml, cell));
-        cell.addEventListener('mouseleave', hideTooltip);
-        // Support touch devices
-        cell.addEventListener('touchstart', (evt) => {
-            evt.preventDefault();
-            showTooltip(tooltipHtml, cell);
-        });
-    });
-
-    // If you leave the SVG entirely, hide tooltip
-    const svg = document.querySelector('#cal-heatmap svg');
-    if (svg) svg.addEventListener('mouseleave', hideTooltip);
-
-    // Tap outside to dismiss
-    document.addEventListener('click', (evt) => {
-        if (currentTooltipTarget && !tooltipEl.contains(evt.target) && !currentTooltipTarget.contains(evt.target)) {
-            hideTooltip();
+        // Only add custom tooltip handlers on desktop devices
+        if (!isMobileDevice()) {
+            // Custom tooltip handlers - use target element for positioning
+            cell.addEventListener('mouseenter', () => showTooltip(tooltipHtml, cell));
+            cell.addEventListener('mouseleave', hideTooltip);
+        } else {
+            // On mobile, just add visual feedback without tooltips
+            cell.addEventListener('touchstart', (evt) => {
+                // Trigger haptic feedback for cell interaction
+                triggerHapticFeedback('light');
+                
+                // Add quick visual feedback for touch
+                cell.style.opacity = '0.7';
+                setTimeout(() => {
+                    cell.style.opacity = '';
+                }, 150);
+            });
         }
     });
+
+    // Only add desktop tooltip event handlers
+    if (!isMobileDevice()) {
+        // If you leave the SVG entirely, hide tooltip
+        const svg = document.querySelector('#cal-heatmap svg');
+        if (svg) svg.addEventListener('mouseleave', hideTooltip);
+
+        // Click outside to dismiss
+        document.addEventListener('click', (evt) => {
+            if (currentTooltipTarget && !tooltipEl.contains(evt.target) && !currentTooltipTarget.contains(evt.target)) {
+                hideTooltip();
+            }
+        });
+    }
 };
 
 /**
