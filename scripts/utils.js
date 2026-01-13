@@ -85,12 +85,15 @@ export const renderStatsCard = (config) => {
         html += '<div class="stats-card-body">';
         config.stats.forEach(stat => {
             html += '<div class="stats-card-row">';
-            html += `<div class="stats-card-label">`;
+            // Icon column (20px)
             if (stat.icon) {
-                html += `<span class="stats-card-icon">${renderIcon(stat.icon)}</span>`;
+                html += `<div class="stats-card-icon">${renderIcon(stat.icon)}</div>`;
+            } else {
+                html += '<div class="stats-card-icon"></div>';
             }
-            html += `<span>${stat.label}</span>`;
-            html += '</div>';
+            // Label column (1fr)
+            html += `<div class="stats-card-label">${stat.label}</div>`;
+            // Value column (auto)
             html += `<div class="stats-card-value">${stat.value}</div>`;
             html += '</div>';
         });
