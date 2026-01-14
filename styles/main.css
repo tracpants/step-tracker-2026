@@ -1139,6 +1139,17 @@ body {
     transform: translateY(0);
 }
 
+/* Drag handle for swipe gesture */
+.stat-sheet-drag-handle {
+    width: 40px;
+    height: 4px;
+    background: #30363d;
+    border-radius: 2px;
+    margin: 12px auto 8px;
+    flex-shrink: 0;
+    touch-action: none;
+}
+
 /* Sheet content wrapper */
 .stat-sheet-content {
     padding: 20px 20px 24px;
