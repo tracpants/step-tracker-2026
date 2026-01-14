@@ -31,6 +31,27 @@ class GarminTemporaryError(Exception):
     """Raised for temporary errors that should be retried"""
     pass
 
+# Custom exception classes for R2 error handling
+class R2AuthenticationError(Exception):
+    """Raised when R2 authentication/authorization fails"""
+    pass
+
+class R2NetworkError(Exception):
+    """Raised when R2 network connectivity issues occur"""
+    pass
+
+class R2ServiceError(Exception):
+    """Raised when R2 service is unavailable"""
+    pass
+
+class R2ThrottleError(Exception):
+    """Raised when R2 rate limiting occurs"""
+    pass
+
+class R2StorageError(Exception):
+    """Raised when R2 storage quota or disk space issues occur"""
+    pass
+
 # Track if we've already logged about missing healthcheck URL
 _healthcheck_skip_logged = False
 
@@ -246,71 +267,335 @@ def send_healthcheck_with_retry_status(retry_count, max_retries, error_message):
 
 # Git functions removed - using R2 for data storage instead
 
-def upload_to_r2(json_data, config_content):
-    """Upload data directly to Cloudflare R2"""
-    try:
-        # Get R2 configuration from environment
-        r2_endpoint = os.getenv("R2_ENDPOINT_URL")
-        r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
-        r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
-        r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
+def classify_r2_error(error):
+    """
+    Classify R2/S3 errors into appropriate exception types
+    
+    Args:
+        error: The exception or error response to classify
+    
+    Returns:
+        Appropriate custom exception instance
+    """
+    if isinstance(error, ClientError):
+        error_code = error.response.get('Error', {}).get('Code', '')
+        error_message = error.response.get('Error', {}).get('Message', str(error))
         
-        if not all([r2_endpoint, r2_access_key, r2_secret_key]):
-            logging.warning("R2 configuration incomplete - skipping upload")
-            logging.info("Set R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables")
+        # Authentication/Authorization errors
+        if error_code in ['NoCredentialsError', 'InvalidAccessKeyId', 'SignatureDoesNotMatch', 'NoSuchBucket', 'AccessDenied']:
+            return R2AuthenticationError(f"R2 authentication failed: {error_message} (Code: {error_code})")
+        
+        # Throttling/Rate limiting errors
+        elif error_code in ['SlowDown', 'RequestLimitExceeded', 'TooManyRequests']:
+            return R2ThrottleError(f"R2 rate limit exceeded: {error_message} (Code: {error_code})")
+        
+        # Service unavailability errors
+        elif error_code in ['ServiceUnavailable', 'RequestTimeout', 'InternalError']:
+            return R2ServiceError(f"R2 service unavailable: {error_message} (Code: {error_code})")
+        
+        # Storage quota/space errors
+        elif error_code in ['BucketNotEmpty', 'EntityTooLarge', 'InsufficientStorage']:
+            return R2StorageError(f"R2 storage issue: {error_message} (Code: {error_code})")
+        
+        # Network/connectivity errors
+        elif error_code in ['NetworkingError', 'ConnectionError']:
+            return R2NetworkError(f"R2 network error: {error_message} (Code: {error_code})")
+        
+        else:
+            # Unknown ClientError, treat as service error for retry
+            return R2ServiceError(f"Unknown R2 error: {error_message} (Code: {error_code})")
+    
+    else:
+        # Non-ClientError exceptions (network, timeout, etc.)
+        error_msg = str(error).lower()
+        
+        if any(term in error_msg for term in ['network', 'connection', 'timeout', 'dns', 'socket', 'resolve']):
+            return R2NetworkError(f"R2 network error: {error}")
+        elif any(term in error_msg for term in ['credential', 'auth', 'permission', 'access']):
+            return R2AuthenticationError(f"R2 authentication error: {error}")
+        else:
+            # Default to service error for unknown exceptions
+            return R2ServiceError(f"R2 service error: {error}")
+
+def create_r2_client_with_retry(max_retries=3):
+    """
+    Create R2 S3 client with retry logic and proper error handling
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+    
+    Returns:
+        Configured S3 client for R2
+    
+    Raises:
+        R2AuthenticationError: For credential/config issues
+        R2NetworkError: For network connectivity issues
+        R2ServiceError: For service unavailability
+    """
+    def create_client():
+        try:
+            # Get R2 configuration from environment
+            r2_endpoint = os.getenv("R2_ENDPOINT_URL")
+            r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
+            r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+            
+            if not all([r2_endpoint, r2_access_key, r2_secret_key]):
+                raise R2AuthenticationError("R2 configuration incomplete - set R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables")
+            
+            # Configure S3 client for R2 with timeout settings
+            timeout_seconds = int(os.getenv("R2_UPLOAD_TIMEOUT", "30"))
+            
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=r2_endpoint,
+                aws_access_key_id=r2_access_key,
+                aws_secret_access_key=r2_secret_key,
+                region_name='auto',  # R2 uses 'auto' for region
+                config=boto3.session.Config(
+                    retries={'max_attempts': 0},  # Disable boto3's built-in retries since we handle them
+                    read_timeout=timeout_seconds,
+                    connect_timeout=timeout_seconds
+                )
+            )
+            
+            logging.info("Successfully created R2 S3 client")
+            return s3_client
+            
+        except Exception as e:
+            # Classify and re-raise the error
+            classified_error = classify_r2_error(e)
+            logging.error(f"Failed to create R2 client: {classified_error}")
+            raise classified_error
+    
+    # Retry only network and service errors
+    retryable_exceptions = (R2NetworkError, R2ServiceError)
+    
+    try:
+        return retry_with_backoff(
+            create_client,
+            max_retries=max_retries,
+            base_delay=2,
+            exceptions=retryable_exceptions,
+            send_retry_updates=True
+        )
+    except R2AuthenticationError:
+        # Authentication errors should not be retried
+        raise
+    except (R2NetworkError, R2ServiceError) as e:
+        # Convert final retry failure to appropriate error
+        logging.error(f"R2 client creation failed after {max_retries} retries: {e}")
+        raise
+
+def upload_file_to_r2_with_retry(s3_client, bucket, key, content, content_type, cache_control, max_retries=3):
+    """
+    Upload a single file to R2 with retry logic and proper error handling
+    
+    Args:
+        s3_client: Configured S3 client for R2
+        bucket: R2 bucket name
+        key: Object key (filename)
+        content: File content to upload
+        content_type: MIME content type
+        cache_control: Cache control header
+        max_retries: Maximum number of retry attempts
+    
+    Returns:
+        True if upload successful
+    
+    Raises:
+        R2AuthenticationError: For auth/permission failures
+        R2ThrottleError: For rate limiting
+        R2StorageError: For storage issues
+        R2ServiceError: For service unavailability
+        R2NetworkError: For network issues
+    """
+    def upload_attempt():
+        try:
+            s3_client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=content,
+                ContentType=content_type,
+                CacheControl=cache_control
+            )
+            logging.info(f"Successfully uploaded {key} to R2 ({len(content)} bytes)")
+            return True
+            
+        except Exception as e:
+            # Classify and re-raise the error
+            classified_error = classify_r2_error(e)
+            logging.warning(f"Upload attempt failed for {key}: {classified_error}")
+            raise classified_error
+    
+    # Retry network, service, and throttle errors
+    retryable_exceptions = (R2NetworkError, R2ServiceError, R2ThrottleError)
+    
+    try:
+        return retry_with_backoff(
+            upload_attempt,
+            max_retries=max_retries,
+            base_delay=1,
+            max_delay=30,  # Cap at 30 seconds for uploads
+            exceptions=retryable_exceptions,
+            send_retry_updates=True
+        )
+    except (R2AuthenticationError, R2StorageError):
+        # Auth and storage errors should not be retried
+        raise
+    except (R2NetworkError, R2ServiceError, R2ThrottleError) as e:
+        # Convert final retry failure to appropriate error
+        logging.error(f"File upload {key} failed after {max_retries} retries: {e}")
+        raise
+
+def upload_to_r2(json_data, config_content):
+    """
+    Upload data directly to Cloudflare R2 with retry logic and proper error handling
+    
+    Args:
+        json_data: JSON data to upload as steps_data.json
+        config_content: JavaScript config content to upload as config.js
+    
+    Returns:
+        bool: True if all uploads successful, False otherwise
+    """
+    # Get retry configuration from environment
+    max_retries = int(os.getenv("R2_UPLOAD_RETRY_COUNT", "3"))
+    r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
+    
+    # Track upload operations for transactional behavior
+    upload_operations = []
+    successful_uploads = []
+    failed_uploads = []
+    
+    # Prepare upload operations
+    if json_data and (json_data.get('data') or json_data.get('metadata')):
+        json_content = json.dumps(json_data, indent=2)
+        upload_operations.append({
+            'key': 'steps_data.json',
+            'content': json_content,
+            'content_type': 'application/json',
+            'cache_control': 'max-age=300',  # 5 minute cache
+            'description': f"step data ({len(json_data.get('data', {}))} days)"
+        })
+    
+    if config_content:
+        upload_operations.append({
+            'key': 'config.js', 
+            'content': config_content,
+            'content_type': 'application/javascript',
+            'cache_control': 'max-age=3600',  # 1 hour cache
+            'description': "configuration"
+        })
+    
+    if not upload_operations:
+        logging.info("No files to upload to R2")
+        return True  # Success - nothing to do
+    
+    try:
+        # Create R2 client with retry logic
+        logging.info(f"Creating R2 client for {len(upload_operations)} file(s)")
+        try:
+            s3_client = create_r2_client_with_retry(max_retries)
+        except R2AuthenticationError as e:
+            logging.error(f"R2 authentication failed: {e}")
+            send_healthcheck_failure(f"R2 authentication failed: {str(e)}")
+            return False
+        except (R2NetworkError, R2ServiceError) as e:
+            logging.error(f"R2 client creation failed: {e}")
+            send_healthcheck_failure(f"R2 connection failed: {str(e)}")
             return False
         
-        # Configure S3 client for R2
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=r2_endpoint,
-            aws_access_key_id=r2_access_key,
-            aws_secret_access_key=r2_secret_key,
-            region_name='auto'  # R2 uses 'auto' for region
-        )
+        # Perform uploads with individual retry logic
+        logging.info(f"Starting upload of {len(upload_operations)} files to R2")
         
-        uploaded_files = []
-        
-        # Upload steps_data.json if data provided
-        if json_data and (json_data.get('data') or json_data.get('metadata')):
+        for operation in upload_operations:
+            key = operation['key']
+            
             try:
-                json_content = json.dumps(json_data, indent=2)
-                s3_client.put_object(
-                    Bucket=r2_bucket,
-                    Key='steps_data.json',
-                    Body=json_content,
-                    ContentType='application/json',
-                    CacheControl='max-age=300'  # 5 minute cache
+                upload_file_to_r2_with_retry(
+                    s3_client=s3_client,
+                    bucket=r2_bucket,
+                    key=key,
+                    content=operation['content'],
+                    content_type=operation['content_type'],
+                    cache_control=operation['cache_control'],
+                    max_retries=max_retries
                 )
-                uploaded_files.append('steps_data.json')
-                logging.info(f"Uploaded steps_data.json to R2: {len(json_data.get('data', {}))} days tracked")
-            except ClientError as e:
-                logging.error(f"Failed to upload steps_data.json: {e}")
+                
+                successful_uploads.append({
+                    'key': key,
+                    'size': len(operation['content']),
+                    'description': operation['description']
+                })
+                logging.info(f"Successfully uploaded {key}: {operation['description']}")
+                
+            except R2AuthenticationError as e:
+                logging.error(f"Authentication failed for {key}: {e}")
+                failed_uploads.append({'key': key, 'error': 'authentication', 'message': str(e)})
+                
+            except R2StorageError as e:
+                logging.error(f"Storage error for {key}: {e}")
+                failed_uploads.append({'key': key, 'error': 'storage', 'message': str(e)})
+                
+            except (R2NetworkError, R2ServiceError, R2ThrottleError) as e:
+                logging.error(f"Upload failed for {key} after retries: {e}")
+                failed_uploads.append({'key': key, 'error': 'transient', 'message': str(e)})
         
-        # Upload config.js if content provided
-        if config_content:
-            try:
-                s3_client.put_object(
-                    Bucket=r2_bucket,
-                    Key='config.js',
-                    Body=config_content,
-                    ContentType='application/javascript',
-                    CacheControl='max-age=3600'  # 1 hour cache
-                )
-                uploaded_files.append('config.js')
-                logging.info("Uploaded config.js to R2")
-            except ClientError as e:
-                logging.error(f"Failed to upload config.js: {e}")
+        # Analyze results and provide detailed reporting
+        total_files = len(upload_operations)
+        success_count = len(successful_uploads)
+        failure_count = len(failed_uploads)
         
-        if uploaded_files:
-            logging.info(f"Successfully uploaded {len(uploaded_files)} files to R2: {', '.join(uploaded_files)}")
+        if success_count == total_files:
+            # Complete success
+            file_details = ', '.join([f"{u['key']} ({u['size']} bytes)" for u in successful_uploads])
+            logging.info(f"All {total_files} files uploaded successfully to R2: {file_details}")
             return True
+            
+        elif success_count > 0:
+            # Partial success - some files uploaded
+            successful_keys = [u['key'] for u in successful_uploads]
+            failed_keys = [f['key'] for f in failed_uploads]
+            
+            logging.warning(f"Partial R2 upload: {success_count}/{total_files} files succeeded")
+            logging.info(f"Successful uploads: {', '.join(successful_keys)}")
+            logging.error(f"Failed uploads: {', '.join(failed_keys)}")
+            
+            # For partial failures, we still return False but provide detailed health check
+            auth_failures = [f for f in failed_uploads if f['error'] == 'authentication']
+            storage_failures = [f for f in failed_uploads if f['error'] == 'storage'] 
+            transient_failures = [f for f in failed_uploads if f['error'] == 'transient']
+            
+            if auth_failures:
+                send_healthcheck_failure(f"R2 authentication failed for {len(auth_failures)} files")
+            elif storage_failures:
+                send_healthcheck_failure(f"R2 storage issues for {len(storage_failures)} files")
+            else:
+                send_healthcheck_warning(f"R2 partial upload: {success_count}/{total_files} files succeeded")
+            
+            return False
+            
         else:
-            logging.info("No files uploaded to R2")
+            # Complete failure
+            logging.error(f"All R2 uploads failed ({failure_count} files)")
+            
+            # Categorize failures for appropriate health check response
+            auth_failures = [f for f in failed_uploads if f['error'] == 'authentication']
+            storage_failures = [f for f in failed_uploads if f['error'] == 'storage']
+            
+            if auth_failures:
+                send_healthcheck_failure("R2 authentication failed for all uploads")
+            elif storage_failures:
+                send_healthcheck_failure("R2 storage issues prevented all uploads")
+            else:
+                send_healthcheck_failure("R2 service unavailable - all uploads failed")
+            
             return False
             
     except Exception as e:
-        logging.error(f"R2 upload failed: {e}")
+        # Unexpected error during upload process
+        logging.error(f"Unexpected R2 upload error: {e}")
+        send_healthcheck_failure(f"R2 upload error: {str(e)}")
         return False
 
 def download_from_r2():

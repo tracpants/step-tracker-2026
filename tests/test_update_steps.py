@@ -19,10 +19,18 @@ from update_steps import (
     retry_with_backoff,
     garmin_login_with_retry,
     garmin_get_steps_with_retry,
+    classify_r2_error,
+    create_r2_client_with_retry,
+    upload_file_to_r2_with_retry,
     GarminAuthenticationError,
     GarminAPIError,
     GarminNetworkError,
     GarminTemporaryError,
+    R2AuthenticationError,
+    R2NetworkError,
+    R2ServiceError,
+    R2ThrottleError,
+    R2StorageError,
 )
 
 
@@ -420,3 +428,320 @@ class TestCustomExceptions:
         assert str(api_error) == "400 bad request"
         assert str(network_error) == "connection timeout"
         assert str(temp_error) == "rate limit"
+
+
+class TestR2ErrorClassification:
+    def test_classify_r2_client_error_authentication(self):
+        """Test classification of R2 authentication errors"""
+        from botocore.exceptions import ClientError
+        
+        error_response = {
+            'Error': {
+                'Code': 'InvalidAccessKeyId',
+                'Message': 'The AWS Access Key Id you provided does not exist in our records.'
+            }
+        }
+        mock_error = ClientError(error_response, 'PutObject')
+        
+        classified = classify_r2_error(mock_error)
+        assert isinstance(classified, R2AuthenticationError)
+        assert 'InvalidAccessKeyId' in str(classified)
+
+    def test_classify_r2_client_error_throttle(self):
+        """Test classification of R2 throttling errors"""
+        from botocore.exceptions import ClientError
+        
+        error_response = {
+            'Error': {
+                'Code': 'SlowDown',
+                'Message': 'Please reduce your request rate.'
+            }
+        }
+        mock_error = ClientError(error_response, 'PutObject')
+        
+        classified = classify_r2_error(mock_error)
+        assert isinstance(classified, R2ThrottleError)
+        assert 'SlowDown' in str(classified)
+
+    def test_classify_r2_client_error_service(self):
+        """Test classification of R2 service errors"""
+        from botocore.exceptions import ClientError
+        
+        error_response = {
+            'Error': {
+                'Code': 'ServiceUnavailable',
+                'Message': 'Service temporarily unavailable, please try again.'
+            }
+        }
+        mock_error = ClientError(error_response, 'PutObject')
+        
+        classified = classify_r2_error(mock_error)
+        assert isinstance(classified, R2ServiceError)
+        assert 'ServiceUnavailable' in str(classified)
+
+    def test_classify_r2_client_error_storage(self):
+        """Test classification of R2 storage errors"""
+        from botocore.exceptions import ClientError
+        
+        error_response = {
+            'Error': {
+                'Code': 'EntityTooLarge',
+                'Message': 'Your request was too large.'
+            }
+        }
+        mock_error = ClientError(error_response, 'PutObject')
+        
+        classified = classify_r2_error(mock_error)
+        assert isinstance(classified, R2StorageError)
+        assert 'EntityTooLarge' in str(classified)
+
+    def test_classify_r2_network_error(self):
+        """Test classification of network-related errors"""
+        network_error = Exception("connection timeout occurred")
+        
+        classified = classify_r2_error(network_error)
+        assert isinstance(classified, R2NetworkError)
+        assert 'network error' in str(classified).lower()
+
+    def test_classify_r2_unknown_error(self):
+        """Test classification of unknown errors defaults to service error"""
+        unknown_error = Exception("something weird happened")
+        
+        classified = classify_r2_error(unknown_error)
+        assert isinstance(classified, R2ServiceError)
+        assert 'service error' in str(classified).lower()
+
+
+class TestR2ClientCreation:
+    @patch.dict(os.environ, {}, clear=True)
+    def test_create_r2_client_no_config(self):
+        """Test R2 client creation fails with missing config"""
+        with pytest.raises(R2AuthenticationError) as exc_info:
+            create_r2_client_with_retry(max_retries=0)
+        
+        assert "R2 configuration incomplete" in str(exc_info.value)
+
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key'
+    })
+    @patch('update_steps.boto3.client')
+    def test_create_r2_client_success(self, mock_boto_client):
+        """Test successful R2 client creation"""
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        client = create_r2_client_with_retry(max_retries=0)
+        
+        assert client == mock_s3_client
+        mock_boto_client.assert_called_once()
+
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key',
+        'R2_UPLOAD_TIMEOUT': '60'
+    })
+    @patch('update_steps.boto3.client')
+    def test_create_r2_client_with_timeout(self, mock_boto_client):
+        """Test R2 client creation with custom timeout"""
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        create_r2_client_with_retry(max_retries=0)
+        
+        # Verify timeout was passed to boto3 config
+        call_args = mock_boto_client.call_args
+        config = call_args[1]['config']
+        assert config.read_timeout == 60
+        assert config.connect_timeout == 60
+
+
+class TestR2FileUpload:
+    def test_upload_file_to_r2_success(self):
+        """Test successful file upload to R2"""
+        mock_s3_client = MagicMock()
+        
+        result = upload_file_to_r2_with_retry(
+            s3_client=mock_s3_client,
+            bucket="test-bucket",
+            key="test-file.json",
+            content="test content",
+            content_type="application/json",
+            cache_control="max-age=300",
+            max_retries=0
+        )
+        
+        assert result is True
+        mock_s3_client.put_object.assert_called_once_with(
+            Bucket="test-bucket",
+            Key="test-file.json",
+            Body="test content",
+            ContentType="application/json",
+            CacheControl="max-age=300"
+        )
+
+    def test_upload_file_to_r2_auth_failure(self):
+        """Test file upload with authentication failure"""
+        from botocore.exceptions import ClientError
+        
+        mock_s3_client = MagicMock()
+        error_response = {
+            'Error': {
+                'Code': 'AccessDenied',
+                'Message': 'Access denied.'
+            }
+        }
+        mock_s3_client.put_object.side_effect = ClientError(error_response, 'PutObject')
+        
+        with pytest.raises(R2AuthenticationError):
+            upload_file_to_r2_with_retry(
+                s3_client=mock_s3_client,
+                bucket="test-bucket",
+                key="test-file.json",
+                content="test content",
+                content_type="application/json",
+                cache_control="max-age=300",
+                max_retries=0
+            )
+
+    def test_upload_file_to_r2_retry_success(self):
+        """Test file upload success after retries"""
+        from botocore.exceptions import ClientError
+        
+        mock_s3_client = MagicMock()
+        error_response = {
+            'Error': {
+                'Code': 'ServiceUnavailable',
+                'Message': 'Service temporarily unavailable.'
+            }
+        }
+        # Fail once, then succeed
+        mock_s3_client.put_object.side_effect = [
+            ClientError(error_response, 'PutObject'),
+            None
+        ]
+        
+        result = upload_file_to_r2_with_retry(
+            s3_client=mock_s3_client,
+            bucket="test-bucket",
+            key="test-file.json",
+            content="test content",
+            content_type="application/json",
+            cache_control="max-age=300",
+            max_retries=1
+        )
+        
+        assert result is True
+        assert mock_s3_client.put_object.call_count == 2
+
+
+class TestR2UploadIntegration:
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key',
+        'R2_BUCKET_NAME': 'test-bucket',
+        'R2_UPLOAD_RETRY_COUNT': '2'
+    })
+    @patch('update_steps.boto3.client')
+    def test_upload_to_r2_complete_success(self, mock_boto_client):
+        """Test complete successful upload to R2"""
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        test_data = {
+            "metadata": {"lastUpdated": "2026-01-01T00:00:00Z"},
+            "data": {"2026-01-01": {"steps": 10000, "km": 8.0}}
+        }
+        test_config = "window.CONFIG = { TIMEZONE: 'UTC' };"
+        
+        result = upload_to_r2(test_data, test_config)
+        
+        assert result is True
+        assert mock_s3_client.put_object.call_count == 2  # JSON and JS files
+
+    @patch.dict(os.environ, {
+        'R2_ENDPOINT_URL': 'https://test-account.r2.cloudflarestorage.com',
+        'R2_ACCESS_KEY_ID': 'test-access-key',
+        'R2_SECRET_ACCESS_KEY': 'test-secret-key',
+        'R2_BUCKET_NAME': 'test-bucket'
+    })
+    @patch('update_steps.boto3.client')
+    @patch('update_steps.send_healthcheck_warning')
+    def test_upload_to_r2_partial_success(self, mock_health_warning, mock_boto_client):
+        """Test partial upload success with some failures"""
+        from botocore.exceptions import ClientError
+        
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        
+        # Succeed for first call, fail for second
+        error_response = {
+            'Error': {
+                'Code': 'ServiceUnavailable',
+                'Message': 'Service temporarily unavailable.'
+            }
+        }
+        mock_s3_client.put_object.side_effect = [
+            None,  # JSON upload succeeds
+            ClientError(error_response, 'PutObject'),  # Config upload fails
+            ClientError(error_response, 'PutObject'),  # Retry 1 fails
+            ClientError(error_response, 'PutObject'),  # Retry 2 fails
+            ClientError(error_response, 'PutObject'),  # Retry 3 fails
+        ]
+        
+        test_data = {
+            "metadata": {"lastUpdated": "2026-01-01T00:00:00Z"},
+            "data": {"2026-01-01": {"steps": 10000, "km": 8.0}}
+        }
+        test_config = "window.CONFIG = { TIMEZONE: 'UTC' };"
+        
+        result = upload_to_r2(test_data, test_config)
+        
+        assert result is False
+        mock_health_warning.assert_called_once()
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch('update_steps.send_healthcheck_failure')
+    def test_upload_to_r2_auth_failure(self, mock_health_failure):
+        """Test upload failure due to missing authentication"""
+        test_data = {
+            "metadata": {"lastUpdated": "2026-01-01T00:00:00Z"},
+            "data": {"2026-01-01": {"steps": 10000, "km": 8.0}}
+        }
+        
+        result = upload_to_r2(test_data, None)
+        
+        assert result is False
+        mock_health_failure.assert_called_once()
+
+    def test_upload_to_r2_no_data(self):
+        """Test upload with no data returns success"""
+        result = upload_to_r2(None, None)
+        assert result is True
+
+
+class TestR2CustomExceptions:
+    def test_r2_custom_exception_inheritance(self):
+        """Test that R2 custom exceptions inherit from Exception properly"""
+        assert issubclass(R2AuthenticationError, Exception)
+        assert issubclass(R2NetworkError, Exception)
+        assert issubclass(R2ServiceError, Exception)
+        assert issubclass(R2ThrottleError, Exception)
+        assert issubclass(R2StorageError, Exception)
+
+    def test_r2_custom_exception_messages(self):
+        """Test that R2 custom exceptions can carry messages"""
+        auth_error = R2AuthenticationError("invalid credentials")
+        network_error = R2NetworkError("connection timeout")
+        service_error = R2ServiceError("service unavailable")
+        throttle_error = R2ThrottleError("rate limit exceeded")
+        storage_error = R2StorageError("bucket full")
+        
+        assert str(auth_error) == "invalid credentials"
+        assert str(network_error) == "connection timeout"
+        assert str(service_error) == "service unavailable"
+        assert str(throttle_error) == "rate limit exceeded"
+        assert str(storage_error) == "bucket full"
