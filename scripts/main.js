@@ -3,10 +3,10 @@
  */
 
 import { loadStepData, processChartData } from './dataLoader.js';
-import { calculateStats, formatLastUpdated } from './stats.js';
+import { calculateStats, calculateWeeklyProgress, formatLastUpdated } from './stats.js';
 import { initHeatmap, setupHeatmapTracking, setupHeatmapScrollIndicators } from './heatmap.js';
 import { setupCellTooltips, setupMonthTooltips } from './tooltips.js';
-import { shouldUseDesktopPopover, openStatPopover, initPopoverListeners } from './popover.js';
+import { shouldUseDesktopSidePanel, openStatSidePanel, initSidePanelListeners } from './sidePanel.js';
 import { openStatSheet, initBottomSheetListeners } from './bottomSheet.js';
 import { fmt } from './utils.js';
 
@@ -58,8 +58,9 @@ const showHeatmap = () => {
  * Setup click handlers for stat cards
  * @param {Object} data - Raw step data
  * @param {Object} stats - Calculated statistics
+ * @param {Object} weekly - Weekly progress data
  */
-const setupStatCardInteractions = (data, stats) => {
+const setupStatCardInteractions = (data, stats, weekly) => {
     const statCards = document.querySelectorAll('.stats > div');
 
     // Helper to format dates
@@ -105,10 +106,10 @@ const setupStatCardInteractions = (data, stats) => {
 
     const adherence = stats.dayOfYear > 0 ? Math.round((stats.daysWithGoal / stats.dayOfYear) * 100) : 0;
 
-    // Universal click handler that chooses desktop popover or mobile bottom sheet
-    const handleStatClick = (statType, data, element) => {
-        if (shouldUseDesktopPopover()) {
-            openStatPopover(statType, data, element);
+    // Universal click handler that chooses desktop side panel or mobile bottom sheet
+    const handleStatClick = (statType, data) => {
+        if (shouldUseDesktopSidePanel()) {
+            openStatSidePanel(statType, data);
         } else {
             openStatSheet(statType, data);
         }
@@ -119,10 +120,20 @@ const setupStatCardInteractions = (data, stats) => {
         statCards[0].addEventListener('click', () => {
             handleStatClick('total', {
                 total: stats.total,
+                weeklyTotal: weekly.weeklyTotal,
+                weeklyStart: weekly.weekStart,
+                weeklyEnd: weekly.weekEnd,
                 totalKm: stats.totalKm,
                 periodStr,
-                bestDayStr
-            }, statCards[0]);
+                bestDayStr,
+                // Extended stats
+                estimatedCalories: stats.estimatedCalories,
+                kmToMiles: stats.kmToMiles,
+                worldLaps: stats.worldLaps,
+                everestClimbs: stats.everestClimbs,
+                achievementLevel: stats.achievementLevel,
+                achievementBadge: stats.achievementBadge
+            });
         });
     }
 
@@ -133,8 +144,15 @@ const setupStatCardInteractions = (data, stats) => {
                 dailyAverage: stats.dailyAverage,
                 averageKm: stats.averageKm,
                 dayCount: Object.keys(data).length,
-                bestDayStr
-            }, statCards[1]);
+                bestDayStr,
+                // Extended stats
+                dailyCalories: stats.dailyCalories,
+                stepsPerMinute: stats.stepsPerMinute,
+                trend: stats.trend,
+                trendPercentage: stats.trendPercentage,
+                consistencyScore: stats.consistencyScore,
+                mostActiveDay: stats.mostActiveDay
+            });
         });
     }
 
@@ -144,8 +162,14 @@ const setupStatCardInteractions = (data, stats) => {
             handleStatClick('streak', {
                 streak: stats.streak,
                 streakPeriod,
-                streakActive: stats.streak > 0 // simplified active check
-            }, statCards[2]);
+                streakActive: stats.streak > 0,
+                // Extended stats
+                longestStreak: stats.longestStreak,
+                totalGoalDays: stats.totalGoalDays,
+                consistencyScore: stats.consistencyScore,
+                achievementLevel: stats.achievementLevel,
+                achievementBadge: stats.achievementBadge
+            });
         });
     }
 
@@ -156,8 +180,13 @@ const setupStatCardInteractions = (data, stats) => {
                 goalPercentage: stats.goalPercentage,
                 daysWithGoal: stats.daysWithGoal,
                 dayOfYear: stats.dayOfYear,
-                adherence
-            }, statCards[3]);
+                adherence,
+                // Extended stats
+                daysAheadBehind: stats.daysAheadBehind,
+                projectedYearEnd: stats.projectedYearEnd,
+                achievementLevel: stats.achievementLevel,
+                achievementBadge: stats.achievementBadge
+            });
         });
     }
 };
@@ -168,7 +197,7 @@ const setupStatCardInteractions = (data, stats) => {
 const init = async () => {
     try {
         // Initialize event listeners
-        initPopoverListeners();
+        initSidePanelListeners();
         initBottomSheetListeners();
 
         // Load and process data
@@ -177,6 +206,7 @@ const init = async () => {
 
         // Calculate statistics
         const stats = calculateStats(data, chartData);
+        const weekly = calculateWeeklyProgress(data);
 
         // Update UI with stats
         updateStatsDisplay(stats);
@@ -191,7 +221,7 @@ const init = async () => {
             showHeatmap();
             setupCellTooltips(chartData, stats);
             setupMonthTooltips(stats.monthlyTotals);
-            setupStatCardInteractions(data, stats);
+            setupStatCardInteractions(data, stats, weekly);
             setupHeatmapScrollIndicators();
         }, 500);
 

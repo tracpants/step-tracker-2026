@@ -1,5 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { calculateStats, formatLastUpdated } from '../stats.js';
+import { calculateStats, calculateWeeklyProgress, formatLastUpdated } from '../stats.js';
+
+// Mock dayjs globally (stats.js uses it as a browser global)
+global.dayjs = vi.fn((input) => {
+  // We only need behaviour used by calculateWeeklyProgress.
+  // For all other tests in this file, calculateStats doesn't use dayjs.
+  const iso = (typeof input === 'string') ? input : '2026-01-14T12:00:00+11:00';
+
+  const obj = { _formatValue: '2026-01-14' };
+  const startObj = { format: vi.fn(() => '2026-01-12') };
+  const endObj = { format: vi.fn(() => '2026-01-18') };
+
+  obj.tz = vi.fn(() => ({
+    startOf: vi.fn(() => startObj),
+    endOf: vi.fn(() => endObj)
+  }));
+
+  return obj;
+});
+global.dayjs.tz = { guess: vi.fn(() => 'Australia/Sydney') };
 
 describe('stats', () => {
   describe('calculateStats', () => {
@@ -134,6 +153,33 @@ describe('stats', () => {
 
     it('returns null for null input', () => {
       expect(formatLastUpdated(null)).toBeNull();
+    });
+  });
+
+  describe('calculateWeeklyProgress', () => {
+    beforeEach(() => {
+      global.window = { CONFIG: { TIMEZONE: 'Australia/Sydney' } };
+    });
+
+    it('sums steps for the current ISO week (Mon–Sun) based on timezone-local date keys', () => {
+      // ISO week containing 2026-01-14 is 2026-01-12..2026-01-18
+      const data = {
+        '2026-01-11': { steps: 1000 },
+        '2026-01-12': { steps: 2000 },
+        '2026-01-13': { steps: 3000 },
+        '2026-01-14': { steps: 4000 },
+        '2026-01-18': { steps: 5000 },
+        '2026-01-19': { steps: 6000 }
+      };
+
+      const weekly = calculateWeeklyProgress(data, {
+        timezone: 'Australia/Sydney',
+        now: '2026-01-14T12:00:00+11:00'
+      });
+
+      expect(weekly.weekStart).toBe('2026-01-12');
+      expect(weekly.weekEnd).toBe('2026-01-18');
+      expect(weekly.weeklyTotal).toBe(2000 + 3000 + 4000 + 5000);
     });
   });
 });

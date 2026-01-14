@@ -175,20 +175,57 @@ const populateStatPopover = (statType, data) => {
             heroLabelEl.textContent = 'steps';
 
             detailsEl.innerHTML = `
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('map-pin')}</div>
-                    <div class="stat-popover-detail-label">Distance</div>
-                    <div class="stat-popover-detail-value">${data.totalKm.toFixed(1)} km</div>
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('activity')} Activity Overview
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('map-pin')}</div>
+                        <div class="stat-popover-detail-label">Distance walked</div>
+                        <div class="stat-popover-detail-value">${data.totalKm.toFixed(1)} km (${data.kmToMiles.toFixed(1)} mi)</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('flame')}</div>
+                        <div class="stat-popover-detail-label">Est. calories</div>
+                        <div class="stat-popover-detail-value">${fmt(data.estimatedCalories)} cal</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
+                        <div class="stat-popover-detail-label">Period</div>
+                        <div class="stat-popover-detail-value">${data.periodStr}</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-popover-detail-label">Period</div>
-                    <div class="stat-popover-detail-value">${data.periodStr}</div>
+                
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('trophy')} Records & Achievements
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('crown')}</div>
+                        <div class="stat-popover-detail-label">Best day</div>
+                        <div class="stat-popover-detail-value">${data.bestDayStr}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${data.achievementBadge}</div>
+                        <div class="stat-popover-detail-label">Achievement level</div>
+                        <div class="stat-popover-detail-value">${data.achievementLevel}</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('trophy')}</div>
-                    <div class="stat-popover-detail-label">Best day</div>
-                    <div class="stat-popover-detail-value">${data.bestDayStr}</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('zap')} Fun Facts
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('building')}</div>
+                        <div class="stat-popover-detail-label">Flights of stairs</div>
+                        <div class="stat-popover-detail-value">${fmt(data.flightsOfStairs)}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('map')}</div>
+                        <div class="stat-popover-detail-label">City blocks</div>
+                        <div class="stat-popover-detail-value">${fmt(data.cityBlocks)}</div>
+                    </div>
                 </div>
             `;
             break;
@@ -199,21 +236,70 @@ const populateStatPopover = (statType, data) => {
             heroValueEl.textContent = fmt(data.dailyAverage);
             heroLabelEl.textContent = 'steps/day';
 
+            const trendIcon = data.trend === 'improving' ? 'trending-up' : 
+                             data.trend === 'declining' ? 'trending-down' : 'minus';
+            const trendColor = data.trend === 'improving' ? '#28a745' : 
+                              data.trend === 'declining' ? '#dc3545' : '#6c757d';
+
             detailsEl.innerHTML = `
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('map-pin')}</div>
-                    <div class="stat-popover-detail-label">Avg distance</div>
-                    <div class="stat-popover-detail-value">${data.averageKm} km/day</div>
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('bar-chart-3')} Performance Metrics
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('map-pin')}</div>
+                        <div class="stat-popover-detail-label">Avg distance</div>
+                        <div class="stat-popover-detail-value">${data.averageKm} km/day</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('flame')}</div>
+                        <div class="stat-popover-detail-label">Avg calories</div>
+                        <div class="stat-popover-detail-value">${data.dailyCalories} cal/day</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('clock')}</div>
+                        <div class="stat-popover-detail-label">Step pace</div>
+                        <div class="stat-popover-detail-value">${data.stepsPerMinute}/min</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-popover-detail-label">Days included</div>
-                    <div class="stat-popover-detail-value">${data.dayCount}</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('trending-up')} Trends & Analysis
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon" style="color: ${trendColor}">${renderIcon(trendIcon)}</div>
+                        <div class="stat-popover-detail-label">7-day trend</div>
+                        <div class="stat-popover-detail-value" style="color: ${trendColor}">
+                            ${data.trend} ${data.trendPercentage !== 0 ? `(${data.trendPercentage > 0 ? '+' : ''}${data.trendPercentage}%)` : ''}
+                        </div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('target')}</div>
+                        <div class="stat-popover-detail-label">Consistency</div>
+                        <div class="stat-popover-detail-value">${data.consistencyScore}% of days</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('calendar-days')}</div>
+                        <div class="stat-popover-detail-label">Most active day</div>
+                        <div class="stat-popover-detail-value">${data.mostActiveDay}</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('trophy')}</div>
-                    <div class="stat-popover-detail-label">Best day</div>
-                    <div class="stat-popover-detail-value">${data.bestDayStr}</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('trophy')} Records
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('crown')}</div>
+                        <div class="stat-popover-detail-label">Best day</div>
+                        <div class="stat-popover-detail-value">${data.bestDayStr}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
+                        <div class="stat-popover-detail-label">Days tracked</div>
+                        <div class="stat-popover-detail-value">${data.dayCount}</div>
+                    </div>
                 </div>
             `;
             break;
@@ -225,20 +311,57 @@ const populateStatPopover = (statType, data) => {
             heroLabelEl.textContent = data.streak === 1 ? 'day' : 'days';
 
             detailsEl.innerHTML = `
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-popover-detail-label">Period</div>
-                    <div class="stat-popover-detail-value">${data.streakPeriod}</div>
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('flame')} Current Streak
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
+                        <div class="stat-popover-detail-label">Period</div>
+                        <div class="stat-popover-detail-value">${data.streakPeriod}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('activity')}</div>
+                        <div class="stat-popover-detail-label">Status</div>
+                        <div class="stat-popover-detail-value">${data.streakActive ? '🔥 Active' : '💤 Broken'}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('target')}</div>
+                        <div class="stat-popover-detail-label">Target</div>
+                        <div class="stat-popover-detail-value">10,000 steps</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('activity')}</div>
-                    <div class="stat-popover-detail-label">Status</div>
-                    <div class="stat-popover-detail-value">${data.streakActive ? 'Active' : 'Broken'}</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('trophy')} Streak Records
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('crown')}</div>
+                        <div class="stat-popover-detail-label">Longest streak</div>
+                        <div class="stat-popover-detail-value">${data.longestStreak} days</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('calendar-check')}</div>
+                        <div class="stat-popover-detail-label">Total 10k+ days</div>
+                        <div class="stat-popover-detail-value">${data.totalGoalDays}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('percent')}</div>
+                        <div class="stat-popover-detail-label">Success rate</div>
+                        <div class="stat-popover-detail-value">${data.consistencyScore}%</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('target')}</div>
-                    <div class="stat-popover-detail-label">Target</div>
-                    <div class="stat-popover-detail-value">10,000 steps</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('star')} Achievement
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${data.achievementBadge}</div>
+                        <div class="stat-popover-detail-label">Level</div>
+                        <div class="stat-popover-detail-value">${data.achievementLevel}</div>
+                    </div>
                 </div>
             `;
             break;
@@ -249,21 +372,59 @@ const populateStatPopover = (statType, data) => {
             heroValueEl.textContent = `${data.goalPercentage}%`;
             heroLabelEl.textContent = 'of year';
 
+            const scheduleIcon = data.daysAheadBehind >= 0 ? 'trending-up' : 'trending-down';
+            const scheduleColor = data.daysAheadBehind >= 0 ? '#28a745' : '#dc3545';
+            const scheduleText = data.daysAheadBehind >= 0 ? 
+                `${data.daysAheadBehind} days ahead` : 
+                `${Math.abs(data.daysAheadBehind)} days behind`;
+
             detailsEl.innerHTML = `
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-popover-detail-label">Days completed</div>
-                    <div class="stat-popover-detail-value">${data.daysWithGoal} / ${data.dayOfYear}</div>
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('calendar')} Progress Overview
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('check-circle')}</div>
+                        <div class="stat-popover-detail-label">Days completed</div>
+                        <div class="stat-popover-detail-value">${data.daysWithGoal} / ${data.dayOfYear}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('percent')}</div>
+                        <div class="stat-popover-detail-label">Adherence</div>
+                        <div class="stat-popover-detail-value">${data.adherence}%</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('clock')}</div>
+                        <div class="stat-popover-detail-label">Days remaining</div>
+                        <div class="stat-popover-detail-value">${365 - data.dayOfYear} days</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('percent')}</div>
-                    <div class="stat-popover-detail-label">Adherence</div>
-                    <div class="stat-popover-detail-value">${data.adherence}%</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('target')} Goal Analysis
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon" style="color: ${scheduleColor}">${renderIcon(scheduleIcon)}</div>
+                        <div class="stat-popover-detail-label">Schedule</div>
+                        <div class="stat-popover-detail-value" style="color: ${scheduleColor}">${scheduleText}</div>
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${renderIcon('trending-up')}</div>
+                        <div class="stat-popover-detail-label">Projected year-end</div>
+                        <div class="stat-popover-detail-value">${fmt(data.projectedYearEnd)} steps</div>
+                    </div>
                 </div>
-                <div class="stat-popover-detail-row">
-                    <div class="stat-popover-detail-icon">${renderIcon('clock')}</div>
-                    <div class="stat-popover-detail-label">Remaining</div>
-                    <div class="stat-popover-detail-value">${365 - data.dayOfYear} days</div>
+
+                <div class="stat-popover-section">
+                    <div class="stat-popover-section-title">
+                        ${renderIcon('star')} Achievement
+                    </div>
+                    <div class="stat-popover-detail-row">
+                        <div class="stat-popover-detail-icon">${data.achievementBadge}</div>
+                        <div class="stat-popover-detail-label">Level</div>
+                        <div class="stat-popover-detail-value">${data.achievementLevel}</div>
+                    </div>
                 </div>
             `;
             break;

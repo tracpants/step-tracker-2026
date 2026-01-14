@@ -3,6 +3,42 @@
  */
 
 /**
+ * Calculate steps for the current ISO week (Mon–Sun) in the configured timezone.
+ *
+ * Data keys are expected to be local dates in `YYYY-MM-DD`.
+ *
+ * @param {Object} data - Raw step data
+ * @param {Object} [options]
+ * @param {string} [options.timezone] - IANA timezone name
+ * @param {string|Date} [options.now] - Override current time (for tests)
+ * @returns {{ weeklyTotal: number, weekStart: string, weekEnd: string }}
+ */
+export const calculateWeeklyProgress = (data, options = {}) => {
+    const timezone = options.timezone || window.CONFIG?.TIMEZONE || dayjs.tz.guess();
+    const now = options.now ? dayjs(options.now) : dayjs();
+
+    const weekStart = now.tz(timezone).startOf('isoWeek');
+    const weekEnd = now.tz(timezone).endOf('isoWeek');
+    const weekStartStr = weekStart.format('YYYY-MM-DD');
+    const weekEndStr = weekEnd.format('YYYY-MM-DD');
+
+    const weeklyTotal = Object.keys(data).reduce((sum, dateStr) => {
+        if (dateStr >= weekStartStr && dateStr <= weekEndStr) {
+            const entry = data[dateStr];
+            const steps = typeof entry === 'object' ? entry.steps : entry;
+            return sum + (steps || 0);
+        }
+        return sum;
+    }, 0);
+
+    return {
+        weeklyTotal,
+        weekStart: weekStartStr,
+        weekEnd: weekEndStr
+    };
+};
+
+/**
  * Calculate statistics from step data
  * @param {Object} data - Raw step data
  * @param {Array} chartData - Processed chart data
@@ -74,6 +110,11 @@ export const calculateStats = (data, chartData) => {
     const dayOfYear = Math.ceil((today - yearStart) / (1000 * 60 * 60 * 24)) + 1;
     const goalPercentage = Math.round((daysWithGoal / 365) * 100);
 
+    // Calculate extended metrics
+    const extendedStats = calculateExtendedStats(data, chartData, {
+        total, totalKm, dailyAverage, streak, daysWithGoal, dayOfYear
+    });
+
     return {
         total,
         totalKm,
@@ -87,7 +128,8 @@ export const calculateStats = (data, chartData) => {
         daysWithGoal,
         maxSteps,
         maxStepDate,
-        monthlyTotals
+        monthlyTotals,
+        ...extendedStats
     };
 };
 
@@ -116,4 +158,156 @@ export const formatLastUpdated = (lastUpdated) => {
     } else {
         return diffDays + " days ago";
     }
+};
+
+/**
+ * Calculate extended statistics for enhanced popover/sheet displays
+ * @param {Object} data - Raw step data
+ * @param {Array} chartData - Processed chart data
+ * @param {Object} baseStats - Basic calculated stats
+ * @returns {Object} Extended statistics
+ */
+const calculateExtendedStats = (data, chartData, baseStats) => {
+    const sortedDates = Object.keys(data).sort();
+    const recentDays = sortedDates.slice(-7); // Last 7 days for trends
+    const today = new Date(); today.setHours(0,0,0,0);
+    
+    // Calorie estimation (rough: ~0.04 calories per step)
+    const estimatedCalories = Math.round(baseStats.total * 0.04);
+    const dailyCalories = Math.round(baseStats.dailyAverage * 0.04);
+
+    // Step pace analysis (steps per minute during active time, assuming ~12 hours active)
+    const assumedActiveHours = 12;
+    const stepsPerMinute = Math.round(baseStats.dailyAverage / (assumedActiveHours * 60));
+
+    // Trend calculation (recent 7 days vs previous 7 days)
+    let trend = 'stable';
+    let trendPercentage = 0;
+    if (sortedDates.length >= 14) {
+        const recent7 = sortedDates.slice(-7);
+        const previous7 = sortedDates.slice(-14, -7);
+        
+        const recentAvg = recent7.reduce((sum, date) => {
+            const entry = data[date];
+            return sum + (typeof entry === 'object' ? entry.steps : entry);
+        }, 0) / 7;
+        
+        const previousAvg = previous7.reduce((sum, date) => {
+            const entry = data[date];
+            return sum + (typeof entry === 'object' ? entry.steps : entry);
+        }, 0) / 7;
+        
+        trendPercentage = Math.round(((recentAvg - previousAvg) / previousAvg) * 100);
+        if (trendPercentage > 5) trend = 'improving';
+        else if (trendPercentage < -5) trend = 'declining';
+    }
+
+    // Consistency score (percentage of days with 10k+ steps)
+    const consistencyScore = baseStats.dayOfYear > 0 
+        ? Math.round((baseStats.daysWithGoal / baseStats.dayOfYear) * 100)
+        : 0;
+
+    // Longest streak calculation
+    let longestStreak = 0;
+    let currentLongestStreak = 0;
+    sortedDates.forEach(dateStr => {
+        const entry = data[dateStr];
+        const steps = typeof entry === 'object' ? entry.steps : entry;
+        
+        if (steps >= 10000) {
+            currentLongestStreak++;
+            longestStreak = Math.max(longestStreak, currentLongestStreak);
+        } else {
+            currentLongestStreak = 0;
+        }
+    });
+
+    // Days ahead/behind schedule for year goal (assuming goal is 10k+ every day)
+    const expectedDaysCompleted = baseStats.dayOfYear; // Should have 10k+ every day so far
+    const daysAheadBehind = baseStats.daysWithGoal - expectedDaysCompleted;
+
+    // Projected year-end total
+    const projectedYearEnd = baseStats.dayOfYear > 0 
+        ? Math.round((baseStats.total / baseStats.dayOfYear) * 365)
+        : 0;
+
+    // Most active day of week analysis
+    const dayOfWeekCounts = {};
+    const dayOfWeekSteps = {};
+    sortedDates.forEach(dateStr => {
+        const date = new Date(dateStr + 'T00:00:00');
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const entry = data[dateStr];
+        const steps = typeof entry === 'object' ? entry.steps : entry;
+        
+        if (!dayOfWeekCounts[dayName]) {
+            dayOfWeekCounts[dayName] = 0;
+            dayOfWeekSteps[dayName] = 0;
+        }
+        dayOfWeekCounts[dayName]++;
+        dayOfWeekSteps[dayName] += steps;
+    });
+
+    let mostActiveDay = 'N/A';
+    let highestAverage = 0;
+    Object.keys(dayOfWeekSteps).forEach(day => {
+        const avg = dayOfWeekSteps[day] / dayOfWeekCounts[day];
+        if (avg > highestAverage) {
+            highestAverage = avg;
+            mostActiveDay = day;
+        }
+    });
+
+    // Fun equivalent distances
+    const kmToMiles = baseStats.totalKm * 0.621371;
+    const worldLaps = (baseStats.totalKm / 40075).toFixed(3); // Earth circumference ~40,075 km
+    const everestClimbs = (baseStats.totalKm / 8.848).toFixed(1); // Mount Everest height ~8.848 km
+
+
+    // Achievement level based on consistency and total
+    let achievementLevel = 'Getting Started';
+    let achievementBadge = '🚀';
+    if (consistencyScore >= 90 && baseStats.total > 300000) {
+        achievementLevel = 'Step Master';
+        achievementBadge = '🏆';
+    } else if (consistencyScore >= 75 && baseStats.total > 200000) {
+        achievementLevel = 'Step Champion';
+        achievementBadge = '🥇';
+    } else if (consistencyScore >= 60 && baseStats.total > 100000) {
+        achievementLevel = 'Step Warrior';
+        achievementBadge = '⚡';
+    } else if (consistencyScore >= 40 && baseStats.total > 50000) {
+        achievementLevel = 'Step Explorer';
+        achievementBadge = '🌟';
+    }
+
+    return {
+        // Health & Performance
+        estimatedCalories,
+        dailyCalories,
+        stepsPerMinute,
+        
+        // Trends & Analysis
+        trend,
+        trendPercentage,
+        consistencyScore,
+        mostActiveDay,
+        
+        // Streaks & Records
+        longestStreak,
+        totalGoalDays: baseStats.daysWithGoal,
+        
+        // Year Progress Extended
+        daysAheadBehind,
+        projectedYearEnd,
+        
+        // Fun Stats
+        kmToMiles,
+        worldLaps,
+        everestClimbs,
+        
+        // Achievements
+        achievementLevel,
+        achievementBadge
+    };
 };

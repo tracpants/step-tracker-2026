@@ -542,8 +542,8 @@ body {
     position: fixed;
     z-index: 9999;
     display: none;
-    min-width: 320px;
-    max-width: 400px;
+    min-width: 400px;
+    max-width: 500px;
     background: #161b22;
     border: 1px solid rgba(48, 54, 61, 0.6);
     border-radius: 8px;
@@ -753,9 +753,340 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+/* Popover sections for enhanced content organization */
+.stat-popover-section {
+    padding: 12px 14px;
+}
+
+.stat-popover-section:not(:last-child) {
+    border-bottom: 1px solid rgba(33, 38, 45, 0.5);
+}
+
+.stat-popover-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-popover-section-title svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+}
+
 /* Hide popover on mobile - use bottom sheet instead */
 @media (max-width: 768px), (hover: none) {
     .stat-popover {
+        display: none !important;
+    }
+}
+
+/* ========================================================================
+   DESKTOP SIDE PANEL STYLES
+   ======================================================================== */
+
+/* Backdrop/overlay for side panel */
+.stat-side-panel-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.stat-side-panel-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Side panel container */
+.stat-side-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    background: #161b22;
+    border-left: 1px solid #21262d;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+    z-index: 9999;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+}
+
+.stat-side-panel.open {
+    transform: translateX(0);
+}
+
+/* Panel content wrapper */
+.stat-side-panel-content {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header section */
+.stat-side-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 12px;
+}
+
+.stat-side-panel-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #e6edf3;
+    margin: 0;
+}
+
+.stat-side-panel-timeframe {
+    font-size: 12px;
+    color: #8b949e;
+    background: #21262d;
+    padding: 4px 12px;
+    border-radius: 12px;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.stat-side-panel-close-button {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.stat-side-panel-close-button:hover {
+    background: #21262d;
+    color: #e6edf3;
+}
+
+.stat-side-panel-close-button:active {
+    background: #30363d;
+}
+
+.stat-side-panel-close-button svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
+
+/* Hero metric section */
+.stat-side-panel-hero {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 24px;
+    background: linear-gradient(135deg, #0d1117 0%, #21262d 100%);
+    border-radius: 12px;
+    border: 1px solid #30363d;
+}
+
+.stat-side-panel-hero-value {
+    font-size: 56px;
+    font-weight: 700;
+    color: #e6edf3;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    margin-bottom: 8px;
+}
+
+.stat-side-panel-hero-label {
+    font-size: 16px;
+    color: #8b949e;
+    font-weight: 500;
+}
+
+/* Details sections */
+.stat-side-panel-details {
+    flex: 1;
+}
+
+.stat-side-panel-section {
+    margin-bottom: 32px;
+}
+
+.stat-side-panel-section:last-child {
+    margin-bottom: 0;
+}
+
+.stat-side-panel-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-side-panel-section-title svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+}
+
+.stat-side-panel-detail-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #0d1117;
+    border-radius: 8px;
+    border: 1px solid #21262d;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-side-panel-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.stat-side-panel-detail-row:hover {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+.stat-side-panel-detail-row.highlight {
+    background: linear-gradient(135deg, #161b22 0%, #21262d 100%);
+    border-color: #30363d;
+}
+
+.stat-side-panel-detail-row.highlight.success {
+    border-color: rgba(40, 167, 69, 0.3);
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(40, 167, 69, 0.1) 100%);
+}
+
+.stat-side-panel-detail-row.highlight.danger {
+    border-color: rgba(220, 53, 69, 0.3);
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(220, 53, 69, 0.1) 100%);
+}
+
+.stat-side-panel-detail-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8b949e;
+}
+
+.stat-side-panel-detail-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+}
+
+.stat-side-panel-detail-label {
+    font-size: 14px;
+    color: #8b949e;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.stat-side-panel-detail-value {
+    font-size: 15px;
+    color: #e6edf3;
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+}
+
+/* Achievement card styling */
+.stat-side-panel-achievement-card {
+    background: linear-gradient(135deg, #21262d 0%, #30363d 100%);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-side-panel-achievement-badge {
+    font-size: 32px;
+    margin-bottom: 8px;
+    line-height: 1;
+}
+
+.stat-side-panel-achievement-level {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 4px;
+}
+
+.stat-side-panel-achievement-desc {
+    font-size: 13px;
+    color: #8b949e;
+    font-weight: 500;
+}
+
+/* Progress bar styling */
+.stat-side-panel-progress-bar {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.stat-side-panel-progress-label {
+    font-size: 13px;
+    color: #8b949e;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.stat-side-panel-progress-track {
+    background: #21262d;
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.stat-side-panel-progress-fill {
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    min-width: 4px;
+}
+
+.stat-side-panel-progress-text {
+    font-size: 12px;
+    color: #8b949e;
+    font-weight: 500;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Hide side panel on mobile - use bottom sheet instead */
+@media (max-width: 768px), (hover: none) {
+    .stat-side-panel,
+    .stat-side-panel-backdrop {
         display: none !important;
     }
 }
@@ -940,6 +1271,31 @@ body {
     font-weight: 600;
     text-align: right;
     font-variant-numeric: tabular-nums;
+}
+
+/* Bottom sheet sections for enhanced content organization */
+.stat-sheet-section {
+    margin-bottom: 20px;
+}
+
+.stat-sheet-section:last-child {
+    margin-bottom: 0;
+}
+
+.stat-sheet-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-sheet-section-title svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
 }
 
 /* Responsive adjustments for smaller screens */

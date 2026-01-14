@@ -2,7 +2,8 @@
  * Mobile bottom sheet management module
  */
 
-import { fmt, renderIcon, triggerHapticFeedback } from './utils.js';
+import { triggerHapticFeedback } from './utils.js';
+import { generatePanelContent, renderPanelContent } from './statPanelContent.js';
 
 let currentSelectedStat = null;
 let isSheetOpen = false;
@@ -76,111 +77,25 @@ const populateStatSheet = (statType, data) => {
     const heroLabelEl = document.getElementById('stat-sheet-hero-label');
     const detailsEl = document.getElementById('stat-sheet-details');
 
-    // Clear previous content
-    detailsEl.innerHTML = '';
+    // Generate content using shared module (mobile gets minimal features)
+    const content = generatePanelContent(statType, data, {
+        includeProgressBars: false,
+        includeAchievementCards: false
+    });
 
-    switch (statType) {
-        case 'total':
-            titleEl.textContent = 'Total Steps';
-            timeframeEl.textContent = 'Jan 2026';
-            heroValueEl.textContent = fmt(data.total);
-            heroLabelEl.textContent = 'steps';
-
-            // Add detail rows
-            detailsEl.innerHTML = `
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('map-pin')}</div>
-                    <div class="stat-sheet-detail-label">Distance</div>
-                    <div class="stat-sheet-detail-value">${data.totalKm.toFixed(1)} km</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-sheet-detail-label">Period</div>
-                    <div class="stat-sheet-detail-value">${data.periodStr}</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('trophy')}</div>
-                    <div class="stat-sheet-detail-label">Best day</div>
-                    <div class="stat-sheet-detail-value">${data.bestDayStr}</div>
-                </div>
-            `;
-            break;
-
-        case 'average':
-            titleEl.textContent = 'Daily Average';
-            timeframeEl.textContent = 'Jan 2026';
-            heroValueEl.textContent = fmt(data.dailyAverage);
-            heroLabelEl.textContent = 'steps/day';
-
-            detailsEl.innerHTML = `
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('map-pin')}</div>
-                    <div class="stat-sheet-detail-label">Avg distance</div>
-                    <div class="stat-sheet-detail-value">${data.averageKm} km/day</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-sheet-detail-label">Days included</div>
-                    <div class="stat-sheet-detail-value">${data.dayCount}</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('trophy')}</div>
-                    <div class="stat-sheet-detail-label">Best day</div>
-                    <div class="stat-sheet-detail-value">${data.bestDayStr}</div>
-                </div>
-            `;
-            break;
-
-        case 'streak':
-            titleEl.textContent = '10k+ Streak';
-            timeframeEl.textContent = 'Jan 2026';
-            heroValueEl.textContent = data.streak;
-            heroLabelEl.textContent = data.streak === 1 ? 'day' : 'days';
-
-            detailsEl.innerHTML = `
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-sheet-detail-label">Period</div>
-                    <div class="stat-sheet-detail-value">${data.streakPeriod}</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('activity')}</div>
-                    <div class="stat-sheet-detail-label">Status</div>
-                    <div class="stat-sheet-detail-value">${data.streakActive ? 'Active' : 'Broken'}</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('target')}</div>
-                    <div class="stat-sheet-detail-label">Target</div>
-                    <div class="stat-sheet-detail-value">10,000 steps</div>
-                </div>
-            `;
-            break;
-
-        case 'year':
-            titleEl.textContent = 'Year Progress';
-            timeframeEl.textContent = 'YTD';
-            heroValueEl.textContent = `${data.goalPercentage}%`;
-            heroLabelEl.textContent = 'of year';
-
-            detailsEl.innerHTML = `
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('calendar')}</div>
-                    <div class="stat-sheet-detail-label">Days completed</div>
-                    <div class="stat-sheet-detail-value">${data.daysWithGoal} / ${data.dayOfYear}</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('percent')}</div>
-                    <div class="stat-sheet-detail-label">Adherence</div>
-                    <div class="stat-sheet-detail-value">${data.adherence}%</div>
-                </div>
-                <div class="stat-sheet-detail-row">
-                    <div class="stat-sheet-detail-icon">${renderIcon('clock')}</div>
-                    <div class="stat-sheet-detail-label">Remaining</div>
-                    <div class="stat-sheet-detail-value">${365 - data.dayOfYear} days</div>
-                </div>
-            `;
-            break;
+    if (!content) {
+        console.error('Unknown stat type:', statType);
+        return;
     }
+
+    // Set header content
+    titleEl.textContent = content.title;
+    timeframeEl.textContent = content.timeframe;
+    heroValueEl.textContent = content.heroValue;
+    heroLabelEl.textContent = content.heroLabel;
+
+    // Render details using shared renderer
+    detailsEl.innerHTML = renderPanelContent(content, 'stat-sheet');
 };
 
 /**
