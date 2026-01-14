@@ -1,10 +1,7 @@
 import json
 import os
-import tempfile
-import subprocess
 from unittest.mock import patch, MagicMock, call
 import pytest
-from datetime import date, datetime
 import requests
 
 import sys
@@ -15,8 +12,17 @@ from update_steps import (
     send_healthcheck_start,
     send_healthcheck_success,
     send_healthcheck_failure,
+    send_healthcheck_warning,
+    send_healthcheck_with_retry_status,
     upload_to_r2,
     download_from_r2,
+    retry_with_backoff,
+    garmin_login_with_retry,
+    garmin_get_steps_with_retry,
+    GarminAuthenticationError,
+    GarminAPIError,
+    GarminNetworkError,
+    GarminTemporaryError,
 )
 
 
@@ -245,3 +251,172 @@ class TestEnvironmentHandling:
         with patch.dict(os.environ, {'TIMEZONE': 'UTC'}):
             timezone_str = os.getenv("TIMEZONE", "Australia/Sydney")
             assert timezone_str == "UTC"
+
+
+class TestEnhancedHealthcheckFunctions:
+    @patch('update_steps.send_healthcheck')
+    def test_send_healthcheck_warning(self, mock_send):
+        send_healthcheck_warning('Test warning')
+        mock_send.assert_called_once_with('/log', 'Step tracker warning: Test warning')
+
+    @patch('update_steps.send_healthcheck')
+    def test_send_healthcheck_warning_without_message(self, mock_send):
+        send_healthcheck_warning()
+        mock_send.assert_called_once_with('/log', 'Step tracker warning')
+
+    @patch('update_steps.send_healthcheck')
+    def test_send_healthcheck_with_retry_status(self, mock_send):
+        send_healthcheck_with_retry_status(2, 5, 'Network timeout')
+        mock_send.assert_called_once_with('/log', 'Step tracker retry 2/5: Network timeout')
+
+
+class TestRetryWithBackoff:
+    def test_retry_success_first_attempt(self):
+        """Test successful execution on first attempt"""
+        mock_func = MagicMock(return_value="success")
+        result = retry_with_backoff(mock_func, max_retries=3)
+        assert result == "success"
+        assert mock_func.call_count == 1
+
+    def test_retry_success_after_failures(self):
+        """Test successful execution after some failures"""
+        mock_func = MagicMock(side_effect=[Exception("fail"), Exception("fail"), "success"])
+        result = retry_with_backoff(mock_func, max_retries=3, base_delay=0.01)
+        assert result == "success"
+        assert mock_func.call_count == 3
+
+    def test_retry_exhausted_raises_last_exception(self):
+        """Test that final exception is raised after retries exhausted"""
+        mock_func = MagicMock(side_effect=Exception("persistent failure"))
+        with pytest.raises(Exception) as exc_info:
+            retry_with_backoff(mock_func, max_retries=2, base_delay=0.01)
+        assert str(exc_info.value) == "persistent failure"
+        assert mock_func.call_count == 3  # Initial attempt + 2 retries
+
+    @patch('time.sleep')
+    def test_retry_exponential_backoff_timing(self, mock_sleep):
+        """Test exponential backoff delay calculation"""
+        mock_func = MagicMock(side_effect=[Exception("fail"), Exception("fail"), "success"])
+        retry_with_backoff(mock_func, max_retries=2, base_delay=1, backoff_factor=2)
+        
+        expected_calls = [call(1), call(2)]  # 1s, then 2s
+        mock_sleep.assert_has_calls(expected_calls)
+
+    @patch('time.sleep')
+    def test_retry_max_delay_cap(self, mock_sleep):
+        """Test that delay is capped at max_delay"""
+        mock_func = MagicMock(side_effect=[Exception("fail"), Exception("fail"), "success"])
+        retry_with_backoff(mock_func, max_retries=2, base_delay=10, max_delay=5, backoff_factor=2)
+        
+        expected_calls = [call(5), call(5)]  # Both capped at 5
+        mock_sleep.assert_has_calls(expected_calls)
+
+    @patch('update_steps.send_healthcheck_with_retry_status')
+    def test_retry_with_health_check_updates(self, mock_health_check):
+        """Test that health check updates are sent during retries"""
+        mock_func = MagicMock(side_effect=[Exception("fail1"), Exception("fail2"), "success"])
+        retry_with_backoff(mock_func, max_retries=2, base_delay=0.01, send_retry_updates=True)
+        
+        expected_calls = [call(1, 2, "fail1"), call(2, 2, "fail2")]
+        mock_health_check.assert_has_calls(expected_calls)
+
+    def test_retry_specific_exceptions_only(self):
+        """Test that only specified exceptions are retried"""
+        mock_func = MagicMock(side_effect=ValueError("not retryable"))
+        with pytest.raises(ValueError):
+            retry_with_backoff(mock_func, max_retries=3, exceptions=(RuntimeError,))
+        assert mock_func.call_count == 1  # Should not retry ValueError
+
+
+class TestGarminErrorHandling:
+    def test_garmin_authentication_error_classification(self):
+        """Test that authentication errors are properly classified"""
+        with patch('update_steps.Garmin') as mock_garmin_class:
+            mock_garmin = MagicMock()
+            mock_garmin_class.return_value = mock_garmin
+            mock_garmin.login.side_effect = Exception("authentication failed")
+            
+            with pytest.raises(GarminAuthenticationError):
+                garmin_login_with_retry("test@email.com", "password", max_retries=0)
+
+    def test_garmin_network_error_classification(self):
+        """Test that network errors are properly classified"""
+        with patch('update_steps.Garmin') as mock_garmin_class:
+            mock_garmin = MagicMock()
+            mock_garmin_class.return_value = mock_garmin
+            mock_garmin.login.side_effect = Exception("network timeout")
+            
+            with pytest.raises(GarminNetworkError):
+                garmin_login_with_retry("test@email.com", "password", max_retries=0)
+
+    def test_garmin_temporary_error_classification(self):
+        """Test that temporary errors are properly classified"""
+        with patch('update_steps.Garmin') as mock_garmin_class:
+            mock_garmin = MagicMock()
+            mock_garmin_class.return_value = mock_garmin
+            mock_garmin.login.side_effect = Exception("rate limit exceeded")
+            
+            with pytest.raises(GarminTemporaryError):
+                garmin_login_with_retry("test@email.com", "password", max_retries=0)
+
+    def test_garmin_login_retry_success(self):
+        """Test successful login after retries"""
+        with patch('update_steps.Garmin') as mock_garmin_class:
+            mock_garmin = MagicMock()
+            mock_garmin_class.return_value = mock_garmin
+            mock_garmin.login.side_effect = [Exception("server busy"), None]
+            
+            result = garmin_login_with_retry("test@email.com", "password", max_retries=1)
+            assert result == mock_garmin
+            assert mock_garmin.login.call_count == 2
+
+    def test_garmin_api_error_classification(self):
+        """Test that API errors are properly classified"""
+        mock_garmin = MagicMock()
+        mock_garmin.get_daily_steps.side_effect = Exception("API error 400")
+        
+        with pytest.raises(GarminAPIError):
+            garmin_get_steps_with_retry(mock_garmin, "2026-01-01", "2026-01-02", max_retries=0)
+
+    def test_garmin_api_retry_success(self):
+        """Test successful API call after retries"""
+        mock_garmin = MagicMock()
+        mock_stats = [{"calendarDate": "2026-01-01", "totalSteps": 10000}]
+        mock_garmin.get_daily_steps.side_effect = [Exception("server unavailable"), mock_stats]
+        
+        result = garmin_get_steps_with_retry(mock_garmin, "2026-01-01", "2026-01-02", max_retries=1)
+        assert result == mock_stats
+        assert mock_garmin.get_daily_steps.call_count == 2
+
+    def test_garmin_authentication_not_retried(self):
+        """Test that authentication errors are not retried"""
+        with patch('update_steps.Garmin') as mock_garmin_class:
+            mock_garmin = MagicMock()
+            mock_garmin_class.return_value = mock_garmin
+            mock_garmin.login.side_effect = Exception("invalid credentials")
+            
+            with pytest.raises(GarminAuthenticationError):
+                garmin_login_with_retry("test@email.com", "password", max_retries=3)
+            
+            assert mock_garmin.login.call_count == 1  # Should not retry auth errors
+
+
+class TestCustomExceptions:
+    def test_custom_exception_inheritance(self):
+        """Test that custom exceptions inherit from Exception properly"""
+        assert issubclass(GarminAuthenticationError, Exception)
+        assert issubclass(GarminAPIError, Exception)
+        assert issubclass(GarminNetworkError, Exception)
+        assert issubclass(GarminTemporaryError, Exception)
+
+    def test_custom_exception_messages(self):
+        """Test that custom exceptions can carry messages"""
+        auth_error = GarminAuthenticationError("login failed")
+        api_error = GarminAPIError("400 bad request")
+        network_error = GarminNetworkError("connection timeout")
+        temp_error = GarminTemporaryError("rate limit")
+        
+        assert str(auth_error) == "login failed"
+        assert str(api_error) == "400 bad request"
+        assert str(network_error) == "connection timeout"
+        assert str(temp_error) == "rate limit"
