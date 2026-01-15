@@ -19,8 +19,6 @@ describe('statPanelContent', () => {
         estimatedCalories: 6000,
         periodStr: 'Jan 1–Jan 14, 2026',
         bestDayStr: 'Jan 10 (18,500)',
-        achievementBadge: '🏆',
-        achievementLevel: 'Step Champion',
         worldLaps: '0.003',
         everestClimbs: '12.7',
         weeklyTotal: 45000
@@ -45,9 +43,7 @@ describe('statPanelContent', () => {
         streakPeriod: 'Jan 8 - Jan 14',
         longestStreak: 10,
         totalGoalDays: 12,
-        consistencyScore: 86,
-        achievementBadge: '🏆',
-        achievementLevel: 'Step Champion'
+        consistencyScore: 86
     };
 
     const mockYearData = {
@@ -56,9 +52,7 @@ describe('statPanelContent', () => {
         dayOfYear: 14,
         adherence: 86,
         daysAheadBehind: -2,
-        projectedYearEnd: 3912500,
-        achievementBadge: '🏆',
-        achievementLevel: 'Step Champion'
+        projectedYearEnd: 3912500
     };
 
     describe('generatePanelContent', () => {
@@ -174,24 +168,8 @@ describe('statPanelContent', () => {
             it('uses "Streak History" section title', () => {
                 const content = generatePanelContent('streak', mockStreakData);
                 const historySection = content.sections.find(s => s.title === 'Streak History');
-                
+
                 expect(historySection).toBeDefined();
-            });
-
-            it('includes achievement card when includeAchievementCards is true', () => {
-                const content = generatePanelContent('streak', mockStreakData, { includeAchievementCards: true });
-                const achievementSection = content.sections.find(s => s.title === 'Achievement');
-                
-                expect(achievementSection.achievementCard).toBeDefined();
-                expect(achievementSection.rows).toBeUndefined();
-            });
-
-            it('includes achievement row when includeAchievementCards is false', () => {
-                const content = generatePanelContent('streak', mockStreakData, { includeAchievementCards: false });
-                const achievementSection = content.sections.find(s => s.title === 'Achievement');
-                
-                expect(achievementSection.achievementCard).toBeUndefined();
-                expect(achievementSection.rows).toBeDefined();
             });
         });
 
@@ -261,23 +239,6 @@ describe('statPanelContent', () => {
             expect(html).toContain('stat-side-panel-progress-bar');
             expect(html).toContain('stat-side-panel-progress-track');
             expect(html).toContain('stat-side-panel-progress-fill');
-        });
-
-        it('renders achievement card when section has achievementCard', () => {
-            const content = generatePanelContent('streak', mockStreakData, { includeAchievementCards: true });
-            const html = renderPanelContent(content, 'stat-side-panel');
-            
-            expect(html).toContain('stat-side-panel-achievement-card');
-            expect(html).toContain('stat-side-panel-achievement-badge');
-            expect(html).toContain('🏆');
-        });
-
-        it('renders emoji icons without lucide wrapper', () => {
-            const content = generatePanelContent('total', mockTotalData);
-            const html = renderPanelContent(content, 'stat-sheet');
-            
-            // Achievement badge should be rendered directly, not wrapped in lucide icon
-            expect(html).toContain('🏆');
         });
 
         it('returns empty string for null content', () => {

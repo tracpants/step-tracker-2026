@@ -263,24 +263,6 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
     const worldLaps = (baseStats.totalKm / 40075).toFixed(3); // Earth circumference ~40,075 km
     const everestClimbs = (baseStats.totalKm / 8.848).toFixed(1); // Mount Everest height ~8.848 km
 
-
-    // Achievement level based on consistency and total
-    let achievementLevel = 'Getting Started';
-    let achievementBadge = '🚀';
-    if (consistencyScore >= 90 && baseStats.total > 300000) {
-        achievementLevel = 'Step Master';
-        achievementBadge = '🏆';
-    } else if (consistencyScore >= 75 && baseStats.total > 200000) {
-        achievementLevel = 'Step Champion';
-        achievementBadge = '🥇';
-    } else if (consistencyScore >= 60 && baseStats.total > 100000) {
-        achievementLevel = 'Step Warrior';
-        achievementBadge = '⚡';
-    } else if (consistencyScore >= 40 && baseStats.total > 50000) {
-        achievementLevel = 'Step Explorer';
-        achievementBadge = '🌟';
-    }
-
     return {
         // Health & Performance
         estimatedCalories,
@@ -304,10 +286,6 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
         // Fun Stats
         kmToMiles,
         worldLaps,
-        everestClimbs,
-        
-        // Achievements
-        achievementLevel,
-        achievementBadge
+        everestClimbs
     };
 };

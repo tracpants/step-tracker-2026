@@ -65,12 +65,6 @@ const generateTotalContent = (data, options) => {
                     icon: 'crown',
                     label: 'Best day',
                     value: data.bestDayStr
-                },
-                {
-                    icon: data.achievementBadge,
-                    isEmoji: true,
-                    label: 'Achievement',
-                    value: data.achievementLevel
                 }
             ]
         },
@@ -250,31 +244,6 @@ const generateStreakContent = (data, options) => {
         }
     ];
 
-    // Add achievement section
-    if (options.includeAchievementCards) {
-        sections.push({
-            title: 'Achievement',
-            icon: 'star',
-            achievementCard: {
-                badge: data.achievementBadge,
-                level: data.achievementLevel
-            }
-        });
-    } else {
-        sections.push({
-            title: 'Achievement',
-            icon: 'star',
-            rows: [
-                {
-                    icon: data.achievementBadge,
-                    isEmoji: true,
-                    label: 'Level',
-                    value: data.achievementLevel
-                }
-            ]
-        });
-    }
-
     return {
         title: '10k+ Streak',
         timeframe: 'Jan 2026',
@@ -342,31 +311,6 @@ const generateYearContent = (data, options) => {
             ]
         }
     ];
-
-    // Add achievement section
-    if (options.includeAchievementCards) {
-        sections.push({
-            title: 'Achievement',
-            icon: 'star',
-            achievementCard: {
-                badge: data.achievementBadge,
-                level: data.achievementLevel
-            }
-        });
-    } else {
-        sections.push({
-            title: 'Achievement',
-            icon: 'star',
-            rows: [
-                {
-                    icon: data.achievementBadge,
-                    isEmoji: true,
-                    label: 'Level',
-                    value: data.achievementLevel
-                }
-            ]
-        });
-    }
 
     // Add year progress bar for desktop
     if (options.includeProgressBars) {
