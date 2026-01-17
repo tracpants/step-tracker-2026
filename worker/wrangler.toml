@@ -1,0 +1,33 @@
+name = "step-tracker-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# Cron triggers - runs 4x daily at Sydney time (adjust for UTC offset)
+# Sydney is UTC+11 (or UTC+10 during daylight saving)
+# 1am, 7am, 1pm, 7pm Sydney time =
+# 2pm, 8pm, 2am, 8am UTC (during standard time)
+# 3pm, 9pm, 3am, 9am UTC (during daylight saving)
+#
+# Using standard time schedule:
+[triggers]
+crons = [
+  "0 14 * * *",  # 1am Sydney (2pm UTC)
+  "0 20 * * *",  # 7am Sydney (8pm UTC)
+  "0 2 * * *",   # 1pm Sydney (2am UTC)
+  "0 8 * * *"    # 7pm Sydney (8am UTC)
+]
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "STEP_TRACKER_BUCKET"
+bucket_name = "step-tracker"
+
+# Environment variables (set via wrangler secret)
+# GARMIN_EMAIL - set via: wrangler secret put GARMIN_EMAIL
+# GARMIN_PASSWORD - set via: wrangler secret put GARMIN_PASSWORD
+# R2_PUBLIC_URL - set via: wrangler secret put R2_PUBLIC_URL (optional)
+# HEALTHCHECKS_URL - set via: wrangler secret put HEALTHCHECKS_URL (optional)
+# TIMEZONE - defaults to Australia/Sydney
+
+[vars]
+TIMEZONE = "Australia/Sydney"
