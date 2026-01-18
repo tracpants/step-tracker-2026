@@ -113,14 +113,39 @@ const generateTotalContent = (data, options) => {
  * Generate Daily Average panel content
  */
 const generateAverageContent = (data) => {
-    const trendIcon = data.trend === 'improving' ? 'trending-up' :
-        data.trend === 'declining' ? 'trending-down' : 'minus';
-    const trendColor = data.trend === 'improving' ? '#28a745' :
-        data.trend === 'declining' ? '#dc3545' : '#6c757d';
+    // Handle new trend categories
+    const getTrendDisplay = (trend, trendPercentage, recentAvg, previousAvg) => {
+        if (trend === 'insufficient') {
+            return {
+                icon: 'help-circle',
+                color: '#6c757d',
+                label: 'Recent vs Previous Week',
+                value: 'Insufficient data (need 14+ days)',
+                highlightType: null
+            };
+        }
+        
+        const isPositive = trend.includes('higher');
+        const isNegative = trend.includes('lower');
+        const icon = isPositive ? 'trending-up' : isNegative ? 'trending-down' : 'minus';
+        const color = isPositive ? '#28a745' : isNegative ? '#dc3545' : '#6c757d';
+        
+        // Format the comparison display
+        const formattedRecent = fmt(recentAvg);
+        const formattedPrevious = fmt(previousAvg);
+        const percentageText = trendPercentage !== 0 ? ` (${trendPercentage > 0 ? '+' : ''}${trendPercentage}%)` : '';
+        const comparisonText = `${formattedPrevious} → ${formattedRecent}${percentageText}`;
+        
+        return {
+            icon,
+            color,
+            label: 'Recent vs Previous Week',
+            value: comparisonText,
+            highlightType: isPositive ? 'success' : isNegative ? 'danger' : null
+        };
+    };
 
-    const trendValueText = data.trendPercentage !== 0
-        ? `${data.trend} (${data.trendPercentage > 0 ? '+' : ''}${data.trendPercentage}%)`
-        : data.trend;
+    const trendDisplay = getTrendDisplay(data.trend, data.trendPercentage, data.recentAvg, data.previousAvg);
 
     return {
         title: 'Daily Average',
@@ -154,12 +179,12 @@ const generateAverageContent = (data) => {
                 icon: 'trending-up',
                 rows: [
                     {
-                        icon: trendIcon,
-                        label: '7-day trend',
-                        value: trendValueText,
+                        icon: trendDisplay.icon,
+                        label: trendDisplay.label,
+                        value: trendDisplay.value,
                         highlight: true,
-                        highlightType: data.trend === 'improving' ? 'success' : data.trend === 'declining' ? 'danger' : null,
-                        color: trendColor
+                        highlightType: trendDisplay.highlightType,
+                        color: trendDisplay.color
                     },
                     {
                         icon: 'target',

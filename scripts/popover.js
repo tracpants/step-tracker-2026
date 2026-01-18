@@ -236,10 +236,37 @@ const populateStatPopover = (statType, data) => {
             heroValueEl.textContent = fmt(data.dailyAverage);
             heroLabelEl.textContent = 'steps/day';
 
-            const trendIcon = data.trend === 'improving' ? 'trending-up' : 
-                             data.trend === 'declining' ? 'trending-down' : 'minus';
-            const trendColor = data.trend === 'improving' ? '#28a745' : 
-                              data.trend === 'declining' ? '#dc3545' : '#6c757d';
+            // Handle new trend categories
+            const getTrendDisplayForPopover = (trend, trendPercentage, recentAvg, previousAvg) => {
+                if (trend === 'insufficient') {
+                    return {
+                        icon: 'help-circle',
+                        color: '#6c757d',
+                        label: 'Recent vs Previous Week',
+                        value: 'Insufficient data (need 14+ days)'
+                    };
+                }
+                
+                const isPositive = trend.includes('higher');
+                const isNegative = trend.includes('lower');
+                const icon = isPositive ? 'trending-up' : isNegative ? 'trending-down' : 'minus';
+                const color = isPositive ? '#28a745' : isNegative ? '#dc3545' : '#6c757d';
+                
+                // Format detailed comparison for popover
+                const formattedRecent = fmt(recentAvg);
+                const formattedPrevious = fmt(previousAvg);
+                const percentageText = trendPercentage !== 0 ? ` (${trendPercentage > 0 ? '+' : ''}${trendPercentage}%)` : '';
+                const valueText = `${formattedPrevious} → ${formattedRecent}${percentageText}`;
+                
+                return {
+                    icon,
+                    color,
+                    label: 'Recent vs Previous Week',
+                    value: valueText
+                };
+            };
+
+            const trendDisplay = getTrendDisplayForPopover(data.trend, data.trendPercentage, data.recentAvg, data.previousAvg);
 
             detailsEl.innerHTML = `
                 <div class="stat-popover-section">
@@ -268,10 +295,10 @@ const populateStatPopover = (statType, data) => {
                         ${renderIcon('trending-up')} Trends & Analysis
                     </div>
                     <div class="stat-popover-detail-row">
-                        <div class="stat-popover-detail-icon" style="color: ${trendColor}">${renderIcon(trendIcon)}</div>
-                        <div class="stat-popover-detail-label">7-day trend</div>
-                        <div class="stat-popover-detail-value" style="color: ${trendColor}">
-                            ${data.trend} ${data.trendPercentage !== 0 ? `(${data.trendPercentage > 0 ? '+' : ''}${data.trendPercentage}%)` : ''}
+                        <div class="stat-popover-detail-icon" style="color: ${trendDisplay.color}">${renderIcon(trendDisplay.icon)}</div>
+                        <div class="stat-popover-detail-label">${trendDisplay.label}</div>
+                        <div class="stat-popover-detail-value" style="color: ${trendDisplay.color}">
+                            ${trendDisplay.value}
                         </div>
                     </div>
                     <div class="stat-popover-detail-row">

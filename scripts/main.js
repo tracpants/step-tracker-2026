@@ -150,6 +150,8 @@ const setupStatCardInteractions = (data, stats, weekly) => {
                 stepsPerMinute: stats.stepsPerMinute,
                 trend: stats.trend,
                 trendPercentage: stats.trendPercentage,
+                recentAvg: stats.recentAvg,
+                previousAvg: stats.previousAvg,
                 consistencyScore: stats.consistencyScore,
                 mostActiveDay: stats.mostActiveDay
             });

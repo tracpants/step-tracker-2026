@@ -29,8 +29,10 @@ describe('statPanelContent', () => {
         averageKm: '8.0',
         dailyCalories: 429,
         stepsPerMinute: 15,
-        trend: 'improving',
+        trend: 'moderately higher',
         trendPercentage: 12,
+        recentAvg: 9543,
+        previousAvg: 8520,
         consistencyScore: 86,
         mostActiveDay: 'Sat',
         bestDayStr: 'Jan 10 (18,500)',
@@ -127,10 +129,28 @@ describe('statPanelContent', () => {
             it('includes trend highlighting with correct type', () => {
                 const content = generatePanelContent('average', mockAverageData);
                 const trendsSection = content.sections.find(s => s.title === 'Trends');
-                const trendRow = trendsSection.rows.find(r => r.label === '7-day trend');
+                const trendRow = trendsSection.rows.find(r => r.label === 'Recent vs Previous Week');
                 
                 expect(trendRow.highlight).toBe(true);
                 expect(trendRow.highlightType).toBe('success');
+                expect(trendRow.value).toContain('8,520 → 9,543 (+12%)');
+            });
+
+            it('handles insufficient data case', () => {
+                const insufficientData = {
+                    ...mockAverageData,
+                    trend: 'insufficient',
+                    trendPercentage: 0,
+                    recentAvg: 0,
+                    previousAvg: 0
+                };
+                const content = generatePanelContent('average', insufficientData);
+                const trendsSection = content.sections.find(s => s.title === 'Trends');
+                const trendRow = trendsSection.rows.find(r => r.label === 'Recent vs Previous Week');
+                
+                expect(trendRow.highlight).toBe(true);
+                expect(trendRow.highlightType).toBe(null);
+                expect(trendRow.value).toBe('Insufficient data (need 14+ days)');
             });
         });
 

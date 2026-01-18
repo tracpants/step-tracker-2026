@@ -181,25 +181,33 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
     const stepsPerMinute = Math.round(baseStats.dailyAverage / (assumedActiveHours * 60));
 
     // Trend calculation (recent 7 days vs previous 7 days)
-    let trend = 'stable';
+    let trend = 'insufficient';
     let trendPercentage = 0;
+    let recentAvg = 0;
+    let previousAvg = 0;
+    
     if (sortedDates.length >= 14) {
         const recent7 = sortedDates.slice(-7);
         const previous7 = sortedDates.slice(-14, -7);
         
-        const recentAvg = recent7.reduce((sum, date) => {
+        recentAvg = recent7.reduce((sum, date) => {
             const entry = data[date];
             return sum + (typeof entry === 'object' ? entry.steps : entry);
         }, 0) / 7;
         
-        const previousAvg = previous7.reduce((sum, date) => {
+        previousAvg = previous7.reduce((sum, date) => {
             const entry = data[date];
             return sum + (typeof entry === 'object' ? entry.steps : entry);
         }, 0) / 7;
         
         trendPercentage = Math.round(((recentAvg - previousAvg) / previousAvg) * 100);
-        if (trendPercentage > 5) trend = 'improving';
-        else if (trendPercentage < -5) trend = 'declining';
+        
+        // More nuanced trend classification with lower thresholds
+        if (trendPercentage >= 10) trend = 'significantly higher';
+        else if (trendPercentage >= 3) trend = 'moderately higher';
+        else if (trendPercentage <= -10) trend = 'significantly lower';
+        else if (trendPercentage <= -3) trend = 'moderately lower';
+        else trend = 'similar';
     }
 
     // Consistency score (percentage of days with 10k+ steps)
@@ -272,6 +280,8 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
         // Trends & Analysis
         trend,
         trendPercentage,
+        recentAvg: Math.round(recentAvg),
+        previousAvg: Math.round(previousAvg),
         consistencyScore,
         mostActiveDay,
         
