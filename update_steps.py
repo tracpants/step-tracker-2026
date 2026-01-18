@@ -5,6 +5,7 @@ import logging
 import subprocess
 import requests
 import time
+import argparse
 from zoneinfo import ZoneInfo
 from garminconnect import Garmin
 from dotenv import load_dotenv
@@ -671,6 +672,11 @@ def download_config_from_r2():
         return None
 
 def main():
+    parser = argparse.ArgumentParser(description="Update step tracker data from Garmin Connect")
+    parser.add_argument("--force-dates", 
+                       help="Force re-fetch specific date range (format: YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD)")
+    args = parser.parse_args()
+    
     load_dotenv()
     email = os.getenv("GARMIN_EMAIL")
     password = os.getenv("GARMIN_PASSWORD")
@@ -743,27 +749,51 @@ def main():
         dates_to_check = []
         yesterday = today - datetime.timedelta(days=1)
         
-        # Find missing dates between start_date and today
-        current_date = start_date
-        while current_date <= today:
-            if current_date.isoformat() not in existing_data:
-                dates_to_check.append((current_date, "missing data"))
-            current_date += datetime.timedelta(days=1)
+        # Handle manual date range override
+        if args.force_dates:
+            try:
+                if ":" in args.force_dates:
+                    # Date range: YYYY-MM-DD:YYYY-MM-DD
+                    start_str, end_str = args.force_dates.split(":")
+                    force_start = datetime.date.fromisoformat(start_str)
+                    force_end = datetime.date.fromisoformat(end_str)
+                    current_date = force_start
+                    while current_date <= force_end:
+                        dates_to_check.append((current_date, f"manual override ({args.force_dates})"))
+                        current_date += datetime.timedelta(days=1)
+                    logging.info(f"Force-fetching date range: {force_start} to {force_end}")
+                else:
+                    # Single date: YYYY-MM-DD
+                    force_date = datetime.date.fromisoformat(args.force_dates)
+                    dates_to_check.append((force_date, f"manual override ({args.force_dates})"))
+                    logging.info(f"Force-fetching single date: {force_date}")
+            except ValueError as e:
+                logging.error(f"Invalid force-dates format: {args.force_dates}. Use YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD")
+                return
+        else:
+            # Find missing dates between start_date and today
+            current_date = start_date
+            while current_date <= today:
+                if current_date.isoformat() not in existing_data:
+                    dates_to_check.append((current_date, "missing data"))
+                current_date += datetime.timedelta(days=1)
         
-        # Always include today to ensure current data is correct
-        if today >= start_date:
-            today_reason = "ensure current data"
-            if today not in [d[0] for d in dates_to_check]:
-                today_reason = f"ensure current data"
-                dates_to_check.append((today, today_reason))
+        # Only add automatic date logic if not using manual override
+        if not args.force_dates:
+            # Always include today to ensure current data is correct
+            if today >= start_date:
+                today_reason = "ensure current data"
+                if today not in [d[0] for d in dates_to_check]:
+                    today_reason = f"ensure current data"
+                    dates_to_check.append((today, today_reason))
 
-        # Include yesterday only if we haven't run today yet
-        if yesterday >= start_date:
-            if last_run_date != today and yesterday not in [d[0] for d in dates_to_check]:
-                yesterday_reason = "catch updates"
-                dates_to_check.append((yesterday, yesterday_reason))
-            elif last_run_date == today:
-                logging.info(f"Skipping yesterday ({yesterday}) - already checked today")
+            # Always include last 2 days to catch any late updates or corrections from Garmin
+            for days_back in [1, 2]:  # Yesterday and day before
+                check_date = today - datetime.timedelta(days=days_back)
+                if check_date >= start_date and check_date not in [d[0] for d in dates_to_check]:
+                    reason = "force recent data refresh"
+                    dates_to_check.append((check_date, reason))
+                    logging.info(f"Adding {check_date} for recent data refresh (to catch late Garmin updates)")
 
         if dates_to_check:
             logging.info(f"Found {len(dates_to_check)} dates to check:")
@@ -845,18 +875,27 @@ def main():
                 send_healthcheck_failure("No data available - Garmin API down and no cached data")
                 return
 
-        # Log the Garmin data for transparency
+        # Log the Garmin API response for transparency
+        logging.info(f"Garmin API returned data for {len(stats)} dates:")
         for i, entry in enumerate(stats):
             date_str = entry['calendarDate']
             steps = entry['totalSteps']
             # Extract distance in meters and convert to km
             distance_meters = entry.get('totalDistance') or entry.get('totalDistanceMeters', 0)
             distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
+            
+            # Check if this is recent data that might be incomplete
+            entry_date = datetime.date.fromisoformat(date_str)
+            days_ago = (today - entry_date).days
+            recent_flag = " (RECENT)" if days_ago <= 2 else ""
+            
             # Log first entry structure to see available fields
             if i == 0:
-                logging.info(f"  First entry keys: {list(entry.keys())}")
-                logging.info(f"  First entry full data: {entry}")
-            logging.info(f"  Garmin data: {date_str} = {steps} steps, {distance_km} km")
+                logging.info(f"  API response structure: {list(entry.keys())}")
+                if args.force_dates:
+                    logging.info(f"  Manual override mode - fetching: {args.force_dates}")
+                
+            logging.info(f"  Garmin API: {date_str} = {steps} steps, {distance_km} km{recent_flag}")
 
         # Update existing data with new stats
         data_points = existing_data.copy()
@@ -872,6 +911,13 @@ def main():
             distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
 
             new_data = {"steps": steps, "km": distance_km}
+            
+            # Validate potentially incomplete recent data
+            entry_date = datetime.date.fromisoformat(date_str)
+            days_ago = (today - entry_date).days
+            if days_ago <= 3 and steps < 5000:  # Recent dates with unusually low step counts
+                logging.warning(f"Potentially incomplete data for {date_str}: {steps} steps (only {days_ago} days ago)")
+                send_healthcheck_warning(f"Low step count for recent date {date_str}: {steps} steps")
 
             # Handle backward compatibility - old format was integer, new is object
             existing_value = data_points.get(date_str)
