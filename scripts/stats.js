@@ -171,7 +171,13 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
     const sortedDates = Object.keys(data).sort();
     const recentDays = sortedDates.slice(-7); // Last 7 days for trends
     const today = new Date(); today.setHours(0,0,0,0);
-    
+
+    // Check if current day is still in progress (for projection calculations)
+    const timezone = window.CONFIG?.TIMEZONE || dayjs.tz.guess();
+    const now = dayjs().tz(timezone);
+    const endOfToday = now.endOf('day');
+    const isDayInProgress = now.isBefore(endOfToday);
+
     // Calorie estimation (rough: ~0.04 calories per step)
     const estimatedCalories = Math.round(baseStats.total * 0.04);
     const dailyCalories = Math.round(baseStats.dailyAverage * 0.04);
@@ -211,9 +217,12 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
     }
 
     // Consistency score (percentage of days with 10k+ steps)
-    const consistencyScore = baseStats.dayOfYear > 0 
-        ? Math.round((baseStats.daysWithGoal / baseStats.dayOfYear) * 100)
-        : 0;
+    // Don't count today in the denominator if it's still in progress
+    const daysForConsistency = isDayInProgress
+        ? Math.max(1, baseStats.dayOfYear - 1)
+        : Math.max(1, baseStats.dayOfYear);
+
+    const consistencyScore = Math.round((baseStats.daysWithGoal / daysForConsistency) * 100);
 
     // Longest streak calculation
     let longestStreak = 0;
@@ -231,7 +240,10 @@ const calculateExtendedStats = (data, chartData, baseStats) => {
     });
 
     // Days ahead/behind schedule for year goal (assuming goal is 10k+ every day)
-    const expectedDaysCompleted = baseStats.dayOfYear; // Should have 10k+ every day so far
+    // If the current day is still in progress, don't count it as "expected" yet
+    const expectedDaysCompleted = isDayInProgress
+        ? Math.max(0, baseStats.dayOfYear - 1) // Don't count today if it's still in progress
+        : baseStats.dayOfYear; // Count today if the day has ended
     const daysAheadBehind = baseStats.daysWithGoal - expectedDaysCompleted;
 
     // Projected year-end total
