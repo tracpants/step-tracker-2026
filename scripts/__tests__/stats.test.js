@@ -9,11 +9,18 @@ global.dayjs = vi.fn((input) => {
 
   const obj = { _formatValue: '2026-01-14' };
   const startObj = { format: vi.fn(() => '2026-01-12') };
-  const endObj = { format: vi.fn(() => '2026-01-18') };
+  const endOfDayObj = {
+    format: vi.fn(() => '2026-01-18'),
+    _time: new Date('2026-01-05T23:59:59').getTime()
+  };
 
-  obj.tz = vi.fn(() => ({
+  obj.tz = vi.fn((tz) => ({
     startOf: vi.fn(() => startObj),
-    endOf: vi.fn(() => endObj)
+    endOf: vi.fn((unit) => endOfDayObj),
+    isBefore: vi.fn((other) => {
+      // Default: assume day has ended (return false)
+      return false;
+    })
   }));
 
   return obj;
@@ -180,6 +187,123 @@ describe('stats', () => {
       expect(weekly.weekStart).toBe('2026-01-12');
       expect(weekly.weekEnd).toBe('2026-01-18');
       expect(weekly.weeklyTotal).toBe(2000 + 3000 + 4000 + 5000);
+    });
+  });
+
+  describe('in-progress day handling', () => {
+    let mockDayjs;
+
+    beforeEach(() => {
+      global.window = { CONFIG: { TIMEZONE: 'Australia/Sydney' } };
+
+      // Set system time to January 5, 2026 at 2 PM for consistent testing
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-05T14:00:00'));
+
+      // Create a mock dayjs that supports timezone operations
+      mockDayjs = vi.fn((input) => {
+        const mockDate = {
+          tz: vi.fn((tz) => mockDate),
+          endOf: vi.fn((unit) => ({
+            // Return a mock object that can be compared
+            _time: new Date('2026-01-05T23:59:59').getTime()
+          })),
+          isBefore: vi.fn((other) => {
+            // Mock returns true if day is in progress (before end of day)
+            const currentTime = new Date('2026-01-05T14:00:00').getTime();
+            return currentTime < other._time;
+          })
+        };
+        return mockDate;
+      });
+      mockDayjs.tz = { guess: vi.fn(() => 'Australia/Sydney') };
+      global.dayjs = mockDayjs;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('excludes current day from projection when day is in progress', () => {
+      // Mock data: 5 days, 4 with 10k+ steps (all days except today)
+      const mockData = {
+        '2026-01-01': { steps: 12000, km: 9.6 },
+        '2026-01-02': { steps: 11000, km: 8.8 },
+        '2026-01-03': { steps: 10200, km: 8.2 }, // Changed to 10k+
+        '2026-01-04': { steps: 10500, km: 8.4 },
+        '2026-01-05': { steps: 5000, km: 4.0 } // Today with low steps (day in progress)
+      };
+      const mockChartData = Object.entries(mockData).map(([date, entry]) => ({
+        date,
+        value: entry.steps,
+        km: entry.km
+      }));
+
+      const stats = calculateStats(mockData, mockChartData);
+
+      // Expected: 4 days with 10k+ out of 4 completed days (not counting today)
+      // daysAheadBehind = 4 - 4 = 0
+      expect(stats.daysWithGoal).toBe(4);
+      expect(stats.daysAheadBehind).toBe(0); // Not behind because today is in progress
+    });
+
+    it('includes current day in projection when day has ended', () => {
+      // Mock dayjs to indicate day has ended
+      const mockDayjsEnded = vi.fn((input) => {
+        const mockDate = {
+          tz: vi.fn((tz) => mockDate),
+          endOf: vi.fn((unit) => ({
+            _time: new Date('2026-01-05T23:59:59').getTime()
+          })),
+          isBefore: vi.fn((other) => {
+            // Mock returns false (day has ended - it's past midnight)
+            return false;
+          })
+        };
+        return mockDate;
+      });
+      mockDayjsEnded.tz = { guess: vi.fn(() => 'Australia/Sydney') };
+      global.dayjs = mockDayjsEnded;
+
+      const mockData = {
+        '2026-01-01': { steps: 12000, km: 9.6 },
+        '2026-01-02': { steps: 11000, km: 8.8 },
+        '2026-01-03': { steps: 10200, km: 8.2 }, // Changed to 10k+
+        '2026-01-04': { steps: 10500, km: 8.4 },
+        '2026-01-05': { steps: 5000, km: 4.0 } // Today with low steps (day ended)
+      };
+      const mockChartData = Object.entries(mockData).map(([date, entry]) => ({
+        date,
+        value: entry.steps,
+        km: entry.km
+      }));
+
+      const stats = calculateStats(mockData, mockChartData);
+
+      // Expected: 4 days with 10k+ out of 5 completed days
+      // daysAheadBehind = 4 - 5 = -1
+      expect(stats.daysWithGoal).toBe(4);
+      expect(stats.daysAheadBehind).toBe(-1); // Behind by 1 because today ended without 10k
+    });
+
+    it('calculates consistency score excluding in-progress day', () => {
+      const mockData = {
+        '2026-01-01': { steps: 12000, km: 9.6 },
+        '2026-01-02': { steps: 11000, km: 8.8 },
+        '2026-01-03': { steps: 10200, km: 8.2 }, // Changed to 10k+
+        '2026-01-04': { steps: 10500, km: 8.4 },
+        '2026-01-05': { steps: 5000, km: 4.0 } // Today (in progress)
+      };
+      const mockChartData = Object.entries(mockData).map(([date, entry]) => ({
+        date,
+        value: entry.steps,
+        km: entry.km
+      }));
+
+      const stats = calculateStats(mockData, mockChartData);
+
+      // Expected: 4 days with 10k+ out of 4 completed days = 100%
+      expect(stats.consistencyScore).toBe(100);
     });
   });
 });
