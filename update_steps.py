@@ -879,22 +879,22 @@ def main():
         logging.info(f"Garmin API returned data for {len(stats)} dates:")
         for i, entry in enumerate(stats):
             date_str = entry['calendarDate']
-            steps = entry['totalSteps']
+            steps = entry['totalSteps'] or 0  # Handle None values from Garmin API
             # Extract distance in meters and convert to km
             distance_meters = entry.get('totalDistance') or entry.get('totalDistanceMeters', 0)
             distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
-            
+
             # Check if this is recent data that might be incomplete
             entry_date = datetime.date.fromisoformat(date_str)
             days_ago = (today - entry_date).days
             recent_flag = " (RECENT)" if days_ago <= 2 else ""
-            
+
             # Log first entry structure to see available fields
             if i == 0:
                 logging.info(f"  API response structure: {list(entry.keys())}")
                 if args.force_dates:
                     logging.info(f"  Manual override mode - fetching: {args.force_dates}")
-                
+
             logging.info(f"  Garmin API: {date_str} = {steps} steps, {distance_km} km{recent_flag}")
 
         # Update existing data with new stats
@@ -905,13 +905,13 @@ def main():
 
         for entry in stats:
             date_str = entry['calendarDate']
-            steps = entry['totalSteps']
+            steps = entry['totalSteps'] or 0  # Handle None values from Garmin API
             # Extract distance in meters and convert to km
             distance_meters = entry.get('totalDistance') or entry.get('totalDistanceMeters', 0)
             distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
 
             new_data = {"steps": steps, "km": distance_km}
-            
+
             # Validate potentially incomplete recent data
             entry_date = datetime.date.fromisoformat(date_str)
             days_ago = (today - entry_date).days
