@@ -13,6 +13,7 @@ import { fmt } from './utils.js';
 // Initialize dayjs plugins
 dayjs.extend(dayjs_plugin_utc);
 dayjs.extend(dayjs_plugin_timezone);
+dayjs.extend(dayjs_plugin_isoWeek);
 
 /**
  * Update DOM elements with calculated statistics
