@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step Heatmap</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/utc.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/timezone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isoWeek.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
+    <script src="./config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background: transparent;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #cal-heatmap {
+            width: 100%;
+        }
+        #cal-heatmap svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        /* Month label colour for dark backgrounds */
+        .ch-domain-text {
+            fill: #8b949e !important;
+            font-size: 10px !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="cal-heatmap"></div>
+
+    <script>
+        dayjs.extend(dayjs_plugin_utc);
+        dayjs.extend(dayjs_plugin_timezone);
+        dayjs.extend(dayjs_plugin_isoWeek);
+
+        const TIMEZONE = window.CONFIG?.TIMEZONE || 'Australia/Sydney';
+        const DATA_URL = window.CONFIG?.R2_DATA_URL || './steps_data.json';
+
+        const fetchJSON = (url) => fetch(url + '?t=' + Date.now()).then(r => r.json());
+
+        async function loadChartData() {
+            const fallback = './steps_data.json';
+            const json = DATA_URL !== fallback
+                ? await fetchJSON(DATA_URL).catch(() => fetchJSON(fallback))
+                : await fetchJSON(DATA_URL);
+
+            const raw = json && typeof json === 'object' && 'data' in json && 'metadata' in json
+                ? json.data
+                : json;
+
+            const chartData = Object.keys(raw).map(dateStr => {
+                const entry = raw[dateStr];
+                return {
+                    date: dateStr,
+                    value: typeof entry === 'object' ? entry.steps : entry,
+                };
+            });
+
+            // Ensure today shows as 0 rather than empty
+            const todayTz = dayjs().tz(TIMEZONE);
+            const todayStr = todayTz.format('YYYY-MM-DD');
+            if (!raw[todayStr] && todayTz.year() === 2026) {
+                chartData.push({ date: todayStr, value: 0 });
+            }
+
+            return chartData;
+        }
+
+        function makeSVGResponsive() {
+            const svg = document.querySelector('#cal-heatmap svg');
+            if (!svg) return;
+
+            const w = svg.getAttribute('width');
+            const h = svg.getAttribute('height');
+            if (w && h) {
+                svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+            }
+        }
+
+        async function init() {
+            const chartData = await loadChartData();
+
+            const cal = new CalHeatmap();
+            cal.paint({
+                data: { source: chartData, x: 'date', y: 'value' },
+                date: { start: new Date('2026-01-01') },
+                range: 12,
+                scale: {
+                    color: {
+                        type: 'threshold',
+                        range: ['#14432a', '#166b34', '#37a446', '#4dd05a'],
+                        domain: [3000, 6000, 10000],
+                    },
+                },
+                domain: {
+                    type: 'month',
+                    gutter: 4,
+                    label: { text: 'MMM', textAlign: 'middle', position: 'top' },
+                },
+                subDomain: {
+                    type: 'ghDay',
+                    radius: 2,
+                    width: 11,
+                    height: 11,
+                    gutter: 4,
+                    empty: '#161b22',
+                },
+                itemSelector: '#cal-heatmap',
+            });
+
+            // Convert the fixed-size SVG to a responsive viewBox so it
+            // scales to fill whatever container Home Assistant provides.
+            requestAnimationFrame(makeSVGResponsive);
+        }
+
+        init();
+    </script>
+</body>
+</html>
