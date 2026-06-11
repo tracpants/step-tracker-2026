@@ -3,6 +3,7 @@
  */
 
 import { generatePanelContent, renderPanelContent } from './statPanelContent.js';
+import { isMobileDevice } from './utils.js';
 
 let currentSelectedStat = null;
 let isPanelOpen = false;
@@ -14,12 +15,7 @@ const backdrop = document.getElementById('stat-side-panel-backdrop');
  * Detect if the device should use desktop side panel or mobile bottom sheet
  * @returns {boolean} True if should use desktop side panel
  */
-export const shouldUseDesktopSidePanel = () => {
-    // Check for hover capability and screen width
-    const hasHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    const isWideScreen = window.innerWidth > 768;
-    return hasHover && isWideScreen;
-};
+export const shouldUseDesktopSidePanel = () => !isMobileDevice();
 
 /**
  * Open the desktop side panel with stat data
@@ -86,8 +82,7 @@ const populateStatSidePanel = (statType, data) => {
 
     // Generate content using shared module (desktop gets full features)
     const content = generatePanelContent(statType, data, {
-        includeProgressBars: true,
-        includeAchievementCards: true
+        includeProgressBars: true
     });
 
     if (!content) {

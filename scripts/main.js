@@ -8,7 +8,7 @@ import { initHeatmap, setupHeatmapTracking, setupHeatmapScrollIndicators } from 
 import { setupCellTooltips, setupMonthTooltips } from './tooltips.js';
 import { shouldUseDesktopSidePanel, openStatSidePanel, initSidePanelListeners } from './sidePanel.js';
 import { openStatSheet, initBottomSheetListeners } from './bottomSheet.js';
-import { fmt } from './utils.js';
+import { fmt, TRACKING_YEAR } from './utils.js';
 
 // Initialize dayjs plugins
 dayjs.extend(dayjs_plugin_utc);
@@ -88,7 +88,7 @@ const setupStatCardInteractions = (data, stats, weekly) => {
     const dates = Object.keys(data).sort();
     const firstDate = dates[0] ? new Date(dates[0] + 'T00:00:00') : null;
     const lastDate = dates[dates.length - 1] ? new Date(dates[dates.length - 1] + 'T00:00:00') : null;
-    let periodStr = 'Jan 2026';
+    let periodStr = `${TRACKING_YEAR}`;
     if (firstDate && lastDate) {
         const first = firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const last = lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -116,9 +116,22 @@ const setupStatCardInteractions = (data, stats, weekly) => {
         }
     };
 
+    // Make a stat card activatable by mouse, touch, and keyboard
+    const bindStatCard = (card, activate) => {
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.addEventListener('click', activate);
+        card.addEventListener('keydown', (evt) => {
+            if (evt.key === 'Enter' || evt.key === ' ') {
+                evt.preventDefault();
+                activate();
+            }
+        });
+    };
+
     // Card 0: Total Steps
     if (statCards[0]) {
-        statCards[0].addEventListener('click', () => {
+        bindStatCard(statCards[0], () => {
             handleStatClick('total', {
                 total: stats.total,
                 weeklyTotal: weekly.weeklyTotal,
@@ -131,16 +144,14 @@ const setupStatCardInteractions = (data, stats, weekly) => {
                 estimatedCalories: stats.estimatedCalories,
                 kmToMiles: stats.kmToMiles,
                 worldLaps: stats.worldLaps,
-                everestClimbs: stats.everestClimbs,
-                achievementLevel: stats.achievementLevel,
-                achievementBadge: stats.achievementBadge
+                everestClimbs: stats.everestClimbs
             });
         });
     }
 
     // Card 1: Daily Average
     if (statCards[1]) {
-        statCards[1].addEventListener('click', () => {
+        bindStatCard(statCards[1], () => {
             handleStatClick('average', {
                 dailyAverage: stats.dailyAverage,
                 averageKm: stats.averageKm,
@@ -161,7 +172,7 @@ const setupStatCardInteractions = (data, stats, weekly) => {
 
     // Card 2: 10k+ Streak
     if (statCards[2]) {
-        statCards[2].addEventListener('click', () => {
+        bindStatCard(statCards[2], () => {
             handleStatClick('streak', {
                 streak: stats.streak,
                 streakPeriod,
@@ -169,16 +180,14 @@ const setupStatCardInteractions = (data, stats, weekly) => {
                 // Extended stats
                 longestStreak: stats.longestStreak,
                 totalGoalDays: stats.totalGoalDays,
-                consistencyScore: stats.consistencyScore,
-                achievementLevel: stats.achievementLevel,
-                achievementBadge: stats.achievementBadge
+                consistencyScore: stats.consistencyScore
             });
         });
     }
 
     // Card 3: Year Progress
     if (statCards[3]) {
-        statCards[3].addEventListener('click', () => {
+        bindStatCard(statCards[3], () => {
             handleStatClick('year', {
                 goalPercentage: stats.goalPercentage,
                 daysWithGoal: stats.daysWithGoal,
@@ -186,11 +195,19 @@ const setupStatCardInteractions = (data, stats, weekly) => {
                 adherence,
                 // Extended stats
                 daysAheadBehind: stats.daysAheadBehind,
-                projectedYearEnd: stats.projectedYearEnd,
-                achievementLevel: stats.achievementLevel,
-                achievementBadge: stats.achievementBadge
+                projectedYearEnd: stats.projectedYearEnd
             });
         });
+    }
+};
+
+/**
+ * Show a user-facing error in place of the loading skeleton
+ */
+const showLoadError = () => {
+    const skeleton = document.getElementById('loading-skeleton');
+    if (skeleton) {
+        skeleton.innerHTML = '<div class="load-error">Couldn\'t load step data. Please try again later.</div>';
     }
 };
 
@@ -215,21 +232,20 @@ const init = async () => {
         updateStatsDisplay(stats);
         updateLastUpdatedDisplay(lastUpdated);
 
-        // Initialize heatmap
-        const cal = initHeatmap(chartData);
+        // Initialize heatmap and set up interactions once it has rendered
+        const { cal, ready } = initHeatmap(chartData);
         setupHeatmapTracking(cal);
+        await ready;
 
-        // Setup interactions after calendar renders
-        setTimeout(() => {
-            showHeatmap();
-            setupCellTooltips(chartData, stats);
-            setupMonthTooltips(stats.monthlyTotals);
-            setupStatCardInteractions(data, stats, weekly);
-            setupHeatmapScrollIndicators();
-        }, 500);
+        showHeatmap();
+        setupCellTooltips(chartData, stats);
+        setupMonthTooltips(stats.monthlyTotals);
+        setupStatCardInteractions(data, stats, weekly);
+        setupHeatmapScrollIndicators();
 
     } catch (error) {
         console.error('Error initializing app:', error);
+        showLoadError();
     }
 };
 

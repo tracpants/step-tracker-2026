@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,7 +51,10 @@
         const TIMEZONE = window.CONFIG?.TIMEZONE || 'Australia/Sydney';
         const DATA_URL = window.CONFIG?.R2_DATA_URL || './steps_data.json';
 
-        const fetchJSON = (url) => fetch(url + '?t=' + Date.now()).then(r => r.json());
+        const fetchJSON = (url) => fetch(url).then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
 
         async function loadChartData() {
             const fallback = './steps_data.json';
@@ -74,7 +77,7 @@
             // Ensure today shows as 0 rather than empty
             const todayTz = dayjs().tz(TIMEZONE);
             const todayStr = todayTz.format('YYYY-MM-DD');
-            if (!raw[todayStr] && todayTz.year() === 2026) {
+            if (!raw[todayStr] && todayTz.year() === (Number(window.CONFIG?.YEAR) || 2026)) {
                 chartData.push({ date: todayStr, value: 0 });
             }
 

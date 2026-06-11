@@ -2,7 +2,7 @@
  * Tooltip management module
  */
 
-import { fmt, renderStatsCard, isMobileDevice, triggerHapticFeedback } from './utils.js';
+import { fmt, renderStatsCard, isMobileDevice, triggerHapticFeedback, TRACKING_YEAR } from './utils.js';
 
 const tooltipEl = document.getElementById('step-tooltip');
 
@@ -109,11 +109,10 @@ const hideTooltip = () => {
  * @param {Object} stats - Calculated statistics
  */
 export const setupCellTooltips = (chartData, stats) => {
-    const yearStart = new Date(2026, 0, 1);
-    const yearEnd = new Date(2026, 11, 31);
+    const yearStart = new Date(TRACKING_YEAR, 0, 1);
+    const yearEnd = new Date(TRACKING_YEAR, 11, 31);
 
     const cells = document.querySelectorAll('#cal-heatmap rect.ch-subdomain-bg');
-    console.log('Found subdomain cells:', cells.length);
 
     // Pre-index data for O(1) lookup - store full entry with km
     const dataByDate = new Map(chartData.map(d => [d.date, { steps: d.value, km: d.km }]));
@@ -125,10 +124,10 @@ export const setupCellTooltips = (chartData, stats) => {
         if (!cellDate) return;
         cellDate.setHours(0,0,0,0);
 
-        // Use local date (CONFIG.TIMEZONE) for matching steps_data.json keys.
-        const dateStr = dayjs(cellDate)
-            .tz(window.CONFIG?.TIMEZONE || dayjs.tz.guess())
-            .format('YYYY-MM-DD');
+        // Cal-Heatmap renders cells at viewer-local midnight, so format the
+        // timestamp as a local date. Converting to CONFIG.TIMEZONE here would
+        // shift the date by a day for visitors in other timezones.
+        const dateStr = dayjs(cellDate).format('YYYY-MM-DD');
         const isBeforeYear = cellDate < yearStart;
         const isAfterYear = cellDate > yearEnd;
 
@@ -272,12 +271,11 @@ export const setupCellTooltips = (chartData, stats) => {
  */
 export const setupMonthTooltips = (monthlyTotals) => {
     const monthLabels = document.querySelectorAll('#cal-heatmap .ch-domain-text');
-    console.log('Found month labels:', monthLabels.length);
 
     monthLabels.forEach((label, index) => {
-        // Calculate which month this label represents (0-indexed, starting from January 2026)
+        // Calculate which month this label represents (0-indexed, starting from January)
         const monthIndex = index; // 0 = Jan, 1 = Feb, etc.
-        const year = 2026;
+        const year = TRACKING_YEAR;
         const monthKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`; // Format: YYYY-MM
 
         // Check if this month has data

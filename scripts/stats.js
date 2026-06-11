@@ -2,6 +2,8 @@
  * Statistics calculation module
  */
 
+import { TRACKING_YEAR, DAYS_IN_TRACKING_YEAR } from './utils.js';
+
 /**
  * Calculate steps for the current ISO week (Mon–Sun) in the configured timezone.
  *
@@ -74,9 +76,13 @@ export const calculateStats = (data, chartData) => {
 
     let total = 0, totalKm = 0, streak = 0, active = true;
     let streakStartDate = null, streakEndDate = null;
-    let today = new Date(); today.setHours(0,0,0,0);
     let dayCount = Object.keys(data).length;
     let daysWithGoal = 0; // Count days that hit 10k+
+
+    // "Today" in the configured timezone, so streaks and year progress match
+    // the wearer's day rather than each visitor's local clock
+    const timezone = window.CONFIG?.TIMEZONE || dayjs.tz.guess();
+    const todayStr = dayjs().tz(timezone).format('YYYY-MM-DD');
 
     Object.keys(data).sort().reverse().forEach(dateStr => {
         const entry = data[dateStr];
@@ -90,13 +96,12 @@ export const calculateStats = (data, chartData) => {
             daysWithGoal++;
         }
 
-        let date = new Date(dateStr + 'T00:00:00'); date.setHours(0,0,0,0);
-        if (active && date <= today) {
+        if (active && dateStr <= todayStr) {
             if (steps >= 10000) {
                 streak++;
                 if (streakEndDate === null) streakEndDate = dateStr; // First day we encounter (most recent)
                 streakStartDate = dateStr; // Keep updating to get the earliest day
-            } else if (date.getTime() !== today.getTime()) {
+            } else if (dateStr !== todayStr) {
                 active = false;
             }
         }
@@ -105,10 +110,13 @@ export const calculateStats = (data, chartData) => {
     const dailyAverage = dayCount > 0 ? Math.round(total / dayCount) : 0;
     const averageKm = dayCount > 0 ? (totalKm / dayCount).toFixed(1) : 0;
 
-    // Calculate day of year (1-366)
-    const yearStart = new Date(2026, 0, 1);
-    const dayOfYear = Math.ceil((today - yearStart) / (1000 * 60 * 60 * 24)) + 1;
-    const goalPercentage = Math.round((daysWithGoal / 365) * 100);
+    // Day of year (1-based) from the timezone-local date, clamped so visits
+    // before or after the tracking year don't produce nonsense
+    const yearStart = new Date(TRACKING_YEAR, 0, 1);
+    const todayDate = new Date(todayStr + 'T00:00:00');
+    const rawDayOfYear = Math.floor((todayDate - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+    const dayOfYear = Math.min(Math.max(rawDayOfYear, 1), DAYS_IN_TRACKING_YEAR);
+    const goalPercentage = Math.round((daysWithGoal / DAYS_IN_TRACKING_YEAR) * 100);
 
     // Calculate extended metrics
     const extendedStats = calculateExtendedStats(data, chartData, {
@@ -161,7 +169,7 @@ export const formatLastUpdated = (lastUpdated) => {
 };
 
 /**
- * Calculate extended statistics for enhanced popover/sheet displays
+ * Calculate extended statistics for enhanced panel/sheet displays
  * @param {Object} data - Raw step data
  * @param {Array} chartData - Processed chart data
  * @param {Object} baseStats - Basic calculated stats
@@ -169,8 +177,6 @@ export const formatLastUpdated = (lastUpdated) => {
  */
 const calculateExtendedStats = (data, chartData, baseStats) => {
     const sortedDates = Object.keys(data).sort();
-    const recentDays = sortedDates.slice(-7); // Last 7 days for trends
-    const today = new Date(); today.setHours(0,0,0,0);
 
     // Check if current day is still in progress (for projection calculations)
     const timezone = window.CONFIG?.TIMEZONE || dayjs.tz.guess();

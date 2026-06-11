@@ -2,12 +2,18 @@
  * Data loading module for Step Tracker
  */
 
+import { TRACKING_YEAR } from './utils.js';
+
 /**
- * Fetch data from a URL with cache busting
+ * Fetch JSON from a URL. Freshness is governed by the Cache-Control header
+ * set on upload (max-age=300), so no cache busting is needed here.
  * @param {string} url - URL to fetch from
  * @returns {Promise<Object>} Promise resolving to JSON data
  */
-const fetchData = (url) => fetch(url + '?t=' + Date.now()).then(r => r.json());
+const fetchData = (url) => fetch(url).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status} fetching ${url}`);
+    return r.json();
+});
 
 /**
  * Load step data from R2 or local fallback
@@ -21,7 +27,7 @@ export const loadStepData = async () => {
     // Try R2 first, fall back to local if it fails
     const jsonData = primaryUrl !== fallbackUrl ?
         await fetchData(primaryUrl).catch(err => {
-            console.log('R2 fetch failed, falling back to local data:', err.message);
+            console.warn('R2 fetch failed, falling back to local data:', err.message);
             return fetchData(fallbackUrl);
         }) :
         await fetchData(primaryUrl);
@@ -66,8 +72,8 @@ export const processChartData = (data) => {
     const todayStr = todayInTz.format('YYYY-MM-DD');
     const todayYear = todayInTz.year();
 
-    // Only add today if it's not already in the data and is within 2026
-    if (!data[todayStr] && todayYear === 2026) {
+    // Only add today if it's not already in the data and is within the tracking year
+    if (!data[todayStr] && todayYear === TRACKING_YEAR) {
         chartData.push({
             date: todayStr,
             value: 0,

@@ -3,6 +3,18 @@
  */
 
 /**
+ * The calendar year this tracker displays. Sourced from config.js so the
+ * yearly rollover is a one-line change there.
+ */
+export const TRACKING_YEAR = Number(globalThis.window?.CONFIG?.YEAR) || 2026;
+
+/**
+ * Number of days in the tracking year (handles leap years)
+ */
+export const DAYS_IN_TRACKING_YEAR =
+    (TRACKING_YEAR % 4 === 0 && TRACKING_YEAR % 100 !== 0) || TRACKING_YEAR % 400 === 0 ? 366 : 365;
+
+/**
  * Format number with commas for readability
  * @param {number} n - Number to format
  * @returns {string} Formatted number string

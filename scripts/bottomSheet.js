@@ -17,6 +17,9 @@ let touchStartTime = 0;
 let currentY = 0;
 let isDragging = false;
 
+// Element focused before the sheet opened, restored on close
+let lastFocusedElement = null;
+
 /**
  * Open the bottom sheet with specific stat data
  * @param {string} statType - Type of stat: 'total', 'average', 'streak', 'year'
@@ -25,6 +28,7 @@ let isDragging = false;
 export const openStatSheet = (statType, data) => {
     currentSelectedStat = statType;
     isSheetOpen = true;
+    lastFocusedElement = document.activeElement;
 
     // Reset any transforms from previous swipe gestures
     sheet.style.transform = '';
@@ -91,8 +95,7 @@ const populateStatSheet = (statType, data) => {
 
     // Generate content using shared module (mobile gets minimal features)
     const content = generatePanelContent(statType, data, {
-        includeProgressBars: false,
-        includeAchievementCards: false
+        includeProgressBars: false
     });
 
     if (!content) {
@@ -267,23 +270,15 @@ export const initBottomSheetListeners = () => {
     sheet.addEventListener('touchmove', handleTouchMove, { passive: false });
     sheet.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    // Focus management - focus close button when sheet opens
-    const originalFocusedElement = document.activeElement;
-    const focusCloseButton = () => {
-        if (isSheetOpen && sheetCloseButton) {
-            sheetCloseButton.focus();
-        }
-    };
-
-    // Store the originally focused element when sheet opens
+    // Focus management - focus close button when sheet opens, restore focus
+    // to whatever was focused before the sheet opened when it closes
     sheet.addEventListener('transitionend', () => {
         if (isSheetOpen) {
-            focusCloseButton();
-        } else {
-            // Return focus to the originally focused element when sheet closes
-            if (originalFocusedElement && originalFocusedElement.focus) {
-                originalFocusedElement.focus();
+            if (sheetCloseButton) {
+                sheetCloseButton.focus();
             }
+        } else if (lastFocusedElement && lastFocusedElement.focus) {
+            lastFocusedElement.focus();
         }
     });
 };

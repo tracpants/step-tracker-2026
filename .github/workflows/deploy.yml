@@ -25,10 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify R2 configuration
+      - name: Stage site files
+        # Publish only the static site - not the data pipeline, tests, or configs
         run: |
-          echo "Static site deployment - data will be loaded from R2"
-          echo "No local data file needed for GitHub Pages"
+          mkdir _site
+          cp index.html embed.html config.js favicon.svg robots.txt CNAME _site/
+          cp -r styles _site/styles
+          mkdir _site/scripts
+          cp scripts/*.js _site/scripts/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -36,8 +40,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload static site files
-          path: '.'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -37,6 +37,7 @@ describe('dataLoader', () => {
 
       global.fetch = vi.fn(() =>
         Promise.resolve({
+          ok: true,
           json: () => Promise.resolve(mockData)
         })
       );
@@ -45,9 +46,7 @@ describe('dataLoader', () => {
 
       expect(result.data).toEqual(mockData.data);
       expect(result.lastUpdated).toBeInstanceOf(Date);
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('./steps_data.json?t=')
-      );
+      expect(global.fetch).toHaveBeenCalledWith('./steps_data.json');
     });
 
     it('loads data from R2 URL when configured', async () => {
@@ -62,15 +61,14 @@ describe('dataLoader', () => {
 
       global.fetch = vi.fn(() =>
         Promise.resolve({
+          ok: true,
           json: () => Promise.resolve(mockData)
         })
       );
 
       const result = await loadStepData();
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('https://example.com/steps_data.json?t=')
-      );
+      expect(global.fetch).toHaveBeenCalledWith('https://example.com/steps_data.json');
       expect(result.data).toEqual(mockData.data);
     });
 
@@ -90,6 +88,39 @@ describe('dataLoader', () => {
         // Second call to local succeeds
         .mockImplementationOnce(() =>
           Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(localData)
+          })
+        );
+
+      const result = await loadStepData();
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(result.data).toEqual(localData.data);
+    });
+
+    it('falls back to local source when R2 returns an HTTP error', async () => {
+      global.window.CONFIG = {
+        R2_DATA_URL: 'https://example.com/steps_data.json'
+      };
+
+      const localData = {
+        data: { '2026-01-01': { steps: 5000, km: 4.0 } },
+        metadata: { lastUpdated: '2026-01-11T09:00:00Z' }
+      };
+
+      global.fetch = vi.fn()
+        // R2 responds but with a 404
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve('not json')
+          })
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            ok: true,
             json: () => Promise.resolve(localData)
           })
         );
@@ -108,6 +139,7 @@ describe('dataLoader', () => {
 
       global.fetch = vi.fn(() =>
         Promise.resolve({
+          ok: true,
           json: () => Promise.resolve(legacyData)
         })
       );
@@ -130,6 +162,7 @@ describe('dataLoader', () => {
 
       global.fetch = vi.fn(() =>
         Promise.resolve({
+          ok: true,
           json: () => Promise.resolve(newData)
         })
       );
