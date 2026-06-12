@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a step tracking application that displays Garmin Connect data as a GitHub-style heatmap. The application uses a modern hybrid architecture:
 
 **Data Pipeline**: `update_steps.py` (Python) → Garmin API → Cloudflare R2 Storage
-**Frontend**: Static HTML/CSS/JavaScript → Cal-Heatmap library → Dynamic tooltips/popovers
+**Frontend**: Static HTML/CSS/JavaScript → Cal-Heatmap library → Dynamic tooltips/panels
 
 ### Key Architecture Components
 
@@ -19,16 +19,17 @@ This is a step tracking application that displays Garmin Connect data as a GitHu
    - `heatmap.js` - Cal-Heatmap integration and configuration
    - `stats.js` - Statistics calculations (streaks, averages, monthly totals)
    - `tooltips.js` - Custom tooltip system for cells and month labels
-   - `popover.js` - Desktop stat detail popovers
-   - `bottomSheet.js` - Mobile stat detail bottom sheets  
-   - `utils.js` - Shared utilities including `renderStatsCard` for consistent tooltip HTML
+   - `statPanelContent.js` - Shared content generation for stat detail panels
+   - `sidePanel.js` - Desktop stat detail side panel
+   - `bottomSheet.js` - Mobile stat detail bottom sheets
+   - `utils.js` - Shared utilities including `renderStatsCard` and the `TRACKING_YEAR` constant
 
 3. **Responsive Design Strategy**: 
    - Mobile: Bottom sheets for detailed stats, 2x2 grid layout
-   - Desktop: Hover popovers for detailed stats, horizontal layout
+   - Desktop: Side panel for detailed stats, horizontal layout
    - Automatic switching based on screen size and touch capability
 
-4. **Configuration**: `config.js` sets timezone and R2 data URL. The app is hardcoded for 2026 data.
+4. **Configuration**: `config.js` sets timezone, tracking year (`YEAR`), and R2 data URL.
 
 ## Common Development Commands
 
@@ -64,7 +65,7 @@ python3 -m http.server 3000
 
 **Tooltip Grid Layout**: The `renderStatsCard` function in `utils.js` must generate HTML with proper 3-column grid structure (icon, label, value) to match the CSS grid expectations in `main.css`. Incorrect HTML structure causes text overlap.
 
-**Responsive Behavior**: The app automatically detects device capabilities using `shouldUseDesktopPopover()` and switches between popover and bottom sheet interfaces.
+**Responsive Behavior**: The app automatically detects device capabilities using `shouldUseDesktopSidePanel()` (built on `isMobileDevice()` in `utils.js`) and switches between side panel and bottom sheet interfaces.
 
 **Timezone Handling**: All date processing respects the configured timezone (`Australia/Sydney` by default) using dayjs with timezone plugins.
 

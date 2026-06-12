@@ -8,7 +8,8 @@ import { generatePanelContent, renderPanelContent } from '../statPanelContent.js
 // Mock utils module
 vi.mock('../utils.js', () => ({
     fmt: (num) => num.toLocaleString(),
-    renderIcon: (icon) => `<i data-lucide="${icon}"></i>`
+    renderIcon: (icon) => `<i data-lucide="${icon}"></i>`,
+    TRACKING_YEAR: 2026
 }));
 
 describe('statPanelContent', () => {
@@ -63,7 +64,7 @@ describe('statPanelContent', () => {
                 const content = generatePanelContent('total', mockTotalData);
                 
                 expect(content.title).toBe('Total Steps');
-                expect(content.timeframe).toBe('Jan 2026');
+                expect(content.timeframe).toBe('2026 YTD');
                 expect(content.heroValue).toBe('150,000');
                 expect(content.heroLabel).toBe('steps');
             });

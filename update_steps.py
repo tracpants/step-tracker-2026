@@ -2,18 +2,25 @@ import os
 import json
 import datetime
 import logging
-import subprocess
 import requests
+import sys
 import time
 import argparse
 from zoneinfo import ZoneInfo
-from garminconnect import Garmin
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError,
+)
 from dotenv import load_dotenv
-from git import Repo
 import boto3
 from botocore.exceptions import ClientError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# The calendar year this tracker collects data for
+TRACKING_YEAR = 2026
 
 # Custom exception classes for better error handling
 class GarminAuthenticationError(Exception):
@@ -124,15 +131,20 @@ def garmin_login_with_retry(email, password, max_retries=3):
             garmin.login()
             logging.info("Successfully authenticated with Garmin Connect")
             return garmin
+        except GarminConnectAuthenticationError as e:
+            raise GarminAuthenticationError(f"Garmin authentication failed: {e}")
+        except GarminConnectTooManyRequestsError as e:
+            raise GarminTemporaryError(f"Garmin rate limit during login: {e}")
+        except (GarminConnectConnectionError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise GarminNetworkError(f"Network error during Garmin login: {e}")
         except Exception as e:
+            # Fallback classification by message for errors the library doesn't type
             error_msg = str(e).lower()
-            
-            # Categorize the error
-            if any(term in error_msg for term in ['authentication', 'credential', 'login', 'password', 'unauthorized', 'forbidden']):
+            if any(term in error_msg for term in ['authentication', 'credential', 'password', 'unauthorized', 'forbidden', '401', '403']):
                 raise GarminAuthenticationError(f"Garmin authentication failed: {e}")
             elif any(term in error_msg for term in ['network', 'connection', 'timeout', 'dns', 'socket']):
                 raise GarminNetworkError(f"Network error during Garmin login: {e}")
-            elif any(term in error_msg for term in ['rate limit', 'too many', 'busy', 'server', '5']):
+            elif any(term in error_msg for term in ['rate limit', 'too many', 'busy', 'server', 'unavailable', '429', '500', '502', '503', '504']):
                 raise GarminTemporaryError(f"Temporary Garmin service issue: {e}")
             else:
                 # Unknown error, treat as temporary and retry
@@ -180,18 +192,23 @@ def garmin_get_steps_with_retry(garmin, start_date, end_date, max_retries=5):
             stats = garmin.get_daily_steps(start_date, end_date)
             logging.info(f"Successfully fetched {len(stats)} days of step data from Garmin")
             return stats
+        except GarminConnectAuthenticationError as e:
+            raise GarminAuthenticationError(f"Garmin session expired or unauthorized: {e}")
+        except GarminConnectTooManyRequestsError as e:
+            raise GarminTemporaryError(f"Garmin rate limit during API call: {e}")
+        except (GarminConnectConnectionError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise GarminNetworkError(f"Network error during Garmin API call: {e}")
         except Exception as e:
+            # Fallback classification by message for errors the library doesn't type
             error_msg = str(e).lower()
-            
-            # Categorize the error
-            if any(term in error_msg for term in ['api', 'invalid request', '400', '404', 'not found']):
+            if any(term in error_msg for term in ['invalid request', 'bad request', '400', '404', 'not found']):
                 raise GarminAPIError(f"Garmin API error: {e}")
             elif any(term in error_msg for term in ['network', 'connection', 'timeout', 'dns', 'socket']):
                 raise GarminNetworkError(f"Network error during Garmin API call: {e}")
-            elif any(term in error_msg for term in ['rate limit', 'too many', 'busy', 'server', '5', 'unavailable']):
-                raise GarminTemporaryError(f"Temporary Garmin API issue: {e}")
             elif any(term in error_msg for term in ['authentication', 'unauthorized', '401', '403']):
                 raise GarminAuthenticationError(f"Garmin session expired or unauthorized: {e}")
+            elif any(term in error_msg for term in ['rate limit', 'too many', 'busy', 'server', 'unavailable', '429', '500', '502', '503', '504']):
+                raise GarminTemporaryError(f"Temporary Garmin API issue: {e}")
             else:
                 # Unknown error, treat as temporary and retry
                 raise GarminTemporaryError(f"Unknown Garmin API error: {e}")
@@ -681,12 +698,11 @@ def main():
     email = os.getenv("GARMIN_EMAIL")
     password = os.getenv("GARMIN_PASSWORD")
     timezone_str = os.getenv("TIMEZONE", "Australia/Sydney")
-    repo_path = os.getcwd()
 
     if not email or not password:
         logging.error("Credentials missing. Please check .env file.")
         send_healthcheck_failure("Missing Garmin credentials")
-        return
+        return 1
 
     try:
         # Signal the start of script execution
@@ -701,11 +717,11 @@ def main():
         except GarminAuthenticationError as e:
             logging.error(f"Authentication failed: {e}")
             send_healthcheck_failure(f"Garmin authentication failed: {str(e)}")
-            return
+            return 1
         except (GarminNetworkError, GarminTemporaryError) as e:
             logging.error(f"Unable to connect to Garmin after retries: {e}")
             send_healthcheck_failure(f"Garmin connection failed: {str(e)}")
-            return
+            return 1
 
         # Get today's date in the configured timezone
         tz = ZoneInfo(timezone_str)
@@ -713,7 +729,7 @@ def main():
         today = now_in_tz.date()
         logging.info(f"Current date in {timezone_str}: {today} (UTC would be: {datetime.date.today()})")
 
-        start_date = datetime.date(2026, 1, 1)
+        start_date = datetime.date(TRACKING_YEAR, 1, 1)
         
         # Read existing data to determine what dates we need to fetch
         existing_data = {}
@@ -769,7 +785,7 @@ def main():
                     logging.info(f"Force-fetching single date: {force_date}")
             except ValueError as e:
                 logging.error(f"Invalid force-dates format: {args.force_dates}. Use YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD")
-                return
+                return 1
         else:
             # Find missing dates between start_date and today
             current_date = start_date
@@ -781,11 +797,8 @@ def main():
         # Only add automatic date logic if not using manual override
         if not args.force_dates:
             # Always include today to ensure current data is correct
-            if today >= start_date:
-                today_reason = "ensure current data"
-                if today not in [d[0] for d in dates_to_check]:
-                    today_reason = f"ensure current data"
-                    dates_to_check.append((today, today_reason))
+            if today >= start_date and today not in [d[0] for d in dates_to_check]:
+                dates_to_check.append((today, "ensure current data"))
 
             # Always include last 2 days to catch any late updates or corrections from Garmin
             for days_back in [1, 2]:  # Yesterday and day before
@@ -813,7 +826,8 @@ def main():
         
         if not missing_dates:
             logging.info("No missing dates to fetch.")
-            return
+            send_healthcheck_success()
+            return 0
         
         # Fetch data for missing dates only
         missing_dates.sort()
@@ -827,11 +841,11 @@ def main():
         except GarminAuthenticationError as e:
             logging.error(f"Authentication expired during API call: {e}")
             send_healthcheck_failure(f"Garmin session expired: {str(e)}")
-            return
+            return 1
         except GarminAPIError as e:
             logging.error(f"Garmin API error: {e}")
             send_healthcheck_failure(f"Garmin API error: {str(e)}")
-            return
+            return 1
         except (GarminNetworkError, GarminTemporaryError) as e:
             logging.error(f"Unable to fetch step data after retries: {e}")
             # For step data fetch failures, we'll implement graceful degradation
@@ -844,36 +858,36 @@ def main():
             
             # Check if we have some existing data to work with
             if existing_data:
-                logging.info(f"Preserving existing data ({len(existing_data)} days) and updating metadata")
-                
-                # Update only metadata to show we attempted an update
+                logging.info(f"Preserving existing data ({len(existing_data)} days) and recording the failure")
+
+                # Record the failure without touching lastUpdated - the data is
+                # only as fresh as the last successful sync
                 output_data = {
                     "metadata": {
-                        "lastUpdated": now_in_tz.isoformat(),
+                        **existing_metadata,
                         "timezone": timezone_str,
                         "lastFailure": now_in_tz.isoformat(),
                         "failureReason": "Garmin API unavailable - data preserved"
                     },
                     "data": existing_data
                 }
-                
-                # Still upload to R2 to update the lastUpdated timestamp
+
                 config_content = None  # Don't update config on failure
                 upload_success = upload_to_r2(output_data, config_content)
-                
+
                 if upload_success:
-                    logging.info("Existing data preserved and metadata updated in R2")
+                    logging.info("Existing data preserved and failure recorded in R2")
                     # Send a warning status to indicate partial success (data preserved)
                     send_healthcheck_warning("Garmin API unavailable - existing data preserved")
+                    return 0
                 else:
                     logging.warning("Failed to update R2 metadata during graceful degradation")
                     send_healthcheck_failure("Garmin API unavailable and R2 update failed")
-                
-                return
+                    return 1
             else:
                 logging.error("No existing data available and Garmin API is unavailable - cannot proceed")
                 send_healthcheck_failure("No data available - Garmin API down and no cached data")
-                return
+                return 1
 
         # Log the Garmin API response for transparency
         logging.info(f"Garmin API returned data for {len(stats)} dates:")
@@ -912,10 +926,11 @@ def main():
 
             new_data = {"steps": steps, "km": distance_km}
 
-            # Validate potentially incomplete recent data
+            # Validate potentially incomplete recent data. Skip today (days_ago == 0):
+            # a low count for an in-progress day is expected, not a warning.
             entry_date = datetime.date.fromisoformat(date_str)
             days_ago = (today - entry_date).days
-            if days_ago <= 3 and steps < 5000:  # Recent dates with unusually low step counts
+            if 1 <= days_ago <= 3 and steps < 5000:
                 logging.warning(f"Potentially incomplete data for {date_str}: {steps} steps (only {days_ago} days ago)")
                 send_healthcheck_warning(f"Low step count for recent date {date_str}: {steps} steps")
 
@@ -966,9 +981,10 @@ def main():
         # Generate config.js with timezone and R2 URL settings
         # Build config object
         config_obj = {
-            'TIMEZONE': timezone_str
+            'TIMEZONE': timezone_str,
+            'YEAR': TRACKING_YEAR
         }
-        
+
         # Add R2 URL if configured
         r2_public_url = os.getenv("R2_PUBLIC_URL")
         r2_bucket = os.getenv("R2_BUCKET_NAME", "step-tracker")
@@ -980,12 +996,12 @@ def main():
             # Use direct R2 endpoint (requires CORS setup)
             config_obj['R2_DATA_URL'] = f"{r2_endpoint.rstrip('/')}/{r2_bucket}/steps_data.json"
         
-        # Generate config content
+        # Generate config content (json.dumps quotes strings safely and leaves numbers bare)
         config_lines = ["window.CONFIG = {"]
         config_items = list(config_obj.items())
         for i, (key, value) in enumerate(config_items):
             comma = "," if i < len(config_items) - 1 else ""
-            config_lines.append(f"    {key}: '{value}'{comma}")
+            config_lines.append(f"    {key}: {json.dumps(value)}{comma}")
         config_lines.append("};")
         config_content = "\n".join(config_lines) + "\n"
         
@@ -1012,13 +1028,15 @@ def main():
                 logging.info("Data successfully uploaded to R2")
             else:
                 logging.warning("R2 upload failed or skipped - check R2 configuration")
+                return 1
         else:
             logging.info("No data changes to upload.")
-        
+
         # Note: Last run tracking is now handled by the JSON metadata's lastUpdated field
-        
+
         # Signal successful completion
         send_healthcheck_success()
+        return 0
 
     except Exception as e:
         logging.error(f"Error: {e}")
@@ -1026,4 +1044,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

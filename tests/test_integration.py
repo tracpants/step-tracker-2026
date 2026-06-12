@@ -30,7 +30,7 @@ class TestIntegration:
         with open(index_path, 'r') as f:
             content = f.read()
             assert "<!DOCTYPE html>" in content, "Should have DOCTYPE declaration"
-            assert "<html>" in content, "Should have html tag"
+            assert '<html lang="en">' in content, "Should have html tag with lang attribute"
             
     def test_required_project_files(self):
         """Test that required project files exist"""

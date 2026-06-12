@@ -3,7 +3,9 @@
  * Single source of truth for all stat panel content to ensure consistency
  */
 
-import { fmt, renderIcon } from './utils.js';
+import { fmt, renderIcon, TRACKING_YEAR } from './utils.js';
+
+const YTD_TIMEFRAME = `${TRACKING_YEAR} YTD`;
 
 /**
  * Generate content configuration for a stat panel
@@ -11,21 +13,20 @@ import { fmt, renderIcon } from './utils.js';
  * @param {Object} data - Data object containing all stat information
  * @param {Object} options - Display options
  * @param {boolean} options.includeProgressBars - Whether to include progress bar sections
- * @param {boolean} options.includeAchievementCards - Whether to use card-style achievements
  * @returns {Object} Panel content configuration
  */
 export const generatePanelContent = (statType, data, options = {}) => {
-    const { includeProgressBars = true, includeAchievementCards = true } = options;
+    const { includeProgressBars = true } = options;
 
     switch (statType) {
         case 'total':
-            return generateTotalContent(data, { includeProgressBars, includeAchievementCards });
+            return generateTotalContent(data, { includeProgressBars });
         case 'average':
             return generateAverageContent(data);
         case 'streak':
-            return generateStreakContent(data, { includeAchievementCards });
+            return generateStreakContent(data);
         case 'year':
-            return generateYearContent(data, { includeProgressBars, includeAchievementCards });
+            return generateYearContent(data, { includeProgressBars });
         default:
             return null;
     }
@@ -102,7 +103,7 @@ const generateTotalContent = (data, options) => {
 
     return {
         title: 'Total Steps',
-        timeframe: 'Jan 2026',
+        timeframe: YTD_TIMEFRAME,
         heroValue: fmt(data.total),
         heroLabel: 'steps',
         sections
@@ -149,7 +150,7 @@ const generateAverageContent = (data) => {
 
     return {
         title: 'Daily Average',
-        timeframe: 'Jan 2026',
+        timeframe: YTD_TIMEFRAME,
         heroValue: fmt(data.dailyAverage),
         heroLabel: 'steps/day',
         sections: [
@@ -221,7 +222,7 @@ const generateAverageContent = (data) => {
 /**
  * Generate Streak panel content
  */
-const generateStreakContent = (data, options) => {
+const generateStreakContent = (data) => {
     const sections = [
         {
             title: 'Current Streak',
@@ -271,7 +272,7 @@ const generateStreakContent = (data, options) => {
 
     return {
         title: '10k+ Streak',
-        timeframe: 'Jan 2026',
+        timeframe: YTD_TIMEFRAME,
         heroValue: data.streak,
         heroLabel: data.streak === 1 ? 'day' : 'days',
         sections
@@ -353,7 +354,7 @@ const generateYearContent = (data, options) => {
 
     return {
         title: 'Year Progress',
-        timeframe: '2026 YTD',
+        timeframe: YTD_TIMEFRAME,
         heroValue: `${data.goalPercentage}%`,
         heroLabel: 'of year goal',
         sections
@@ -383,7 +384,7 @@ export const renderPanelContent = (content, classPrefix) => {
                     ? ` highlight${row.highlightType ? ' ' + row.highlightType : ''}`
                     : '';
                 const colorStyle = row.color ? ` style="color: ${row.color}"` : '';
-                const iconHtml = row.isEmoji ? row.icon : renderIcon(row.icon);
+                const iconHtml = renderIcon(row.icon);
 
                 return `
                     <div class="${classPrefix}-detail-row${highlightClass}">
@@ -405,16 +406,6 @@ export const renderPanelContent = (content, classPrefix) => {
                         <div class="${classPrefix}-progress-fill" style="width: ${percentage}%"></div>
                     </div>
                     <div class="${classPrefix}-progress-text">${pb.format(pb.current, pb.target)}</div>
-                </div>`;
-        }
-
-        // Render achievement card
-        if (section.achievementCard) {
-            const ac = section.achievementCard;
-            sectionHtml += `
-                <div class="${classPrefix}-achievement-card">
-                    <div class="${classPrefix}-achievement-badge">${ac.badge}</div>
-                    <div class="${classPrefix}-achievement-level">${ac.level}</div>
                 </div>`;
         }
 

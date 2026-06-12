@@ -17,6 +17,7 @@ global.dayjs = vi.fn((input) => {
   obj.tz = vi.fn((tz) => ({
     startOf: vi.fn(() => startObj),
     endOf: vi.fn((unit) => endOfDayObj),
+    format: vi.fn(() => '2026-01-14'),
     isBefore: vi.fn((other) => {
       // Default: assume day has ended (return false)
       return false;
@@ -204,6 +205,7 @@ describe('stats', () => {
       mockDayjs = vi.fn((input) => {
         const mockDate = {
           tz: vi.fn((tz) => mockDate),
+          format: vi.fn(() => '2026-01-05'),
           endOf: vi.fn((unit) => ({
             // Return a mock object that can be compared
             _time: new Date('2026-01-05T23:59:59').getTime()
@@ -252,6 +254,7 @@ describe('stats', () => {
       const mockDayjsEnded = vi.fn((input) => {
         const mockDate = {
           tz: vi.fn((tz) => mockDate),
+          format: vi.fn(() => '2026-01-05'),
           endOf: vi.fn((unit) => ({
             _time: new Date('2026-01-05T23:59:59').getTime()
           })),

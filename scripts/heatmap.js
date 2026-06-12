@@ -2,24 +2,25 @@
  * Heatmap rendering module
  */
 
-import { getResponsiveCellConfig, isMobileDevice } from './utils.js';
+import { getResponsiveCellConfig, isMobileDevice, TRACKING_YEAR } from './utils.js';
 
 /**
  * Initialize and paint the calendar heatmap
  * @param {Array} chartData - Processed chart data
- * @returns {CalHeatmap} The calendar heatmap instance
+ * @returns {{cal: CalHeatmap, ready: Promise}} The heatmap instance and a
+ *   promise that resolves once the initial paint has rendered
  */
 export const initHeatmap = (chartData) => {
     const cal = new CalHeatmap();
     const cellConfig = getResponsiveCellConfig();
 
-    cal.paint({
+    const ready = cal.paint({
         data: {
             source: chartData,
             x: 'date',
             y: 'value',
         },
-        date: { start: new Date('2026-01-01') },
+        date: { start: new Date(TRACKING_YEAR, 0, 1) },
         range: 12,
         scale: {
             color: {
@@ -44,7 +45,7 @@ export const initHeatmap = (chartData) => {
         itemSelector: '#cal-heatmap',
     });
 
-    return cal;
+    return { cal, ready: Promise.resolve(ready) };
 };
 
 /**
@@ -53,15 +54,8 @@ export const initHeatmap = (chartData) => {
  */
 export const setupHeatmapTracking = (cal) => {
     cal.on('click', function(event, timestamp, value) {
-        console.log('Clicked:', timestamp, value);
-
         // Track heatmap cell interactions
         if (window.goatcounter && window.goatcounter.count && value > 0) {
-            const clickedDate = new Date(timestamp);
-            const dateStr = dayjs(clickedDate)
-                .tz(window.CONFIG?.TIMEZONE || dayjs.tz.guess())
-                .format('YYYY-MM-DD');
-
             let stepCategory = 'low-steps'; // 0-2999
             if (value >= 10000) stepCategory = 'goal-achieved';
             else if (value >= 6000) stepCategory = 'moderate-steps';
