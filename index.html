@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
     <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/plugins/CalendarLabel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-    <script src="https://unpkg.com/lucide@0.460.0"></script>>
+    <script src="https://unpkg.com/lucide@0.460.0"></script>
     <script>
         // Skip GoatCounter tracking for development environments
         if (window.location.hostname === 'localhost' ||
@@ -46,6 +46,7 @@
 </head>
 <body>
     <div class="container">
+        <h1 class="visually-hidden">Step Tracker 2026</h1>
 
         <div class="stats">
             <div>
@@ -121,7 +122,7 @@
 
     <!-- Desktop Side Panel for Stat Details -->
     <div id="stat-side-panel-backdrop" class="stat-side-panel-backdrop"></div>
-    <div id="stat-side-panel" class="stat-side-panel" role="dialog" aria-hidden="true">
+    <div id="stat-side-panel" class="stat-side-panel" role="dialog" aria-modal="true" aria-labelledby="stat-side-panel-title" aria-hidden="true">
         <div class="stat-side-panel-content">
             <div class="stat-side-panel-header">
                 <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
@@ -144,7 +145,7 @@
 
     <!-- Bottom Sheet for Stat Details -->
     <div id="stat-sheet-backdrop" class="stat-sheet-backdrop"></div>
-    <div id="stat-sheet" class="stat-sheet" role="dialog" aria-hidden="true">
+    <div id="stat-sheet" class="stat-sheet" role="dialog" aria-modal="true" aria-labelledby="stat-sheet-title" aria-hidden="true">
         <div class="stat-sheet-drag-handle"></div>
         <div class="stat-sheet-content">
             <div class="stat-sheet-header">

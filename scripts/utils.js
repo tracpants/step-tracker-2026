@@ -146,3 +146,68 @@ export const renderStatsCard = (config) => {
 
     return html;
 };
+
+/**
+ * Elements inside a dialog that can receive keyboard focus
+ */
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keep Tab focus inside a container. Call from a keydown handler while the
+ * container is open, otherwise focus escapes into the page behind it.
+ * @param {HTMLElement} container - Dialog element to trap focus within
+ * @param {KeyboardEvent} evt - The keydown event
+ */
+export const trapFocus = (container, evt) => {
+    if (evt.key !== 'Tab' || !container) return;
+
+    const focusable = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+    if (focusable.length === 0) {
+        evt.preventDefault();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (evt.shiftKey && document.activeElement === first) {
+        evt.preventDefault();
+        last.focus();
+    } else if (!evt.shiftKey && document.activeElement === last) {
+        evt.preventDefault();
+        first.focus();
+    }
+};
+
+// Owners currently holding the body scroll lock, so two overlapping dialogs
+// cannot unlock the page out from under each other
+const scrollLockOwners = new Set();
+let savedScrollY = 0;
+
+/**
+ * Freeze background scrolling while a dialog is open
+ * @param {string} owner - Identifier for the dialog requesting the lock
+ */
+export const lockBodyScroll = (owner) => {
+    if (scrollLockOwners.has(owner)) return;
+
+    if (scrollLockOwners.size === 0) {
+        savedScrollY = window.scrollY;
+        document.body.style.top = `-${savedScrollY}px`;
+        document.body.classList.add('scroll-locked');
+    }
+    scrollLockOwners.add(owner);
+};
+
+/**
+ * Release the scroll lock and restore the previous scroll position
+ * @param {string} owner - Identifier passed to lockBodyScroll
+ */
+export const unlockBodyScroll = (owner) => {
+    if (!scrollLockOwners.delete(owner)) return;
+    if (scrollLockOwners.size > 0) return;
+
+    document.body.classList.remove('scroll-locked');
+    document.body.style.top = '';
+    window.scrollTo(0, savedScrollY);
+};

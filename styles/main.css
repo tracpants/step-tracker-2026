@@ -568,7 +568,8 @@ body {
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
     z-index: 9999;
     transform: translateX(100%);
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    visibility: hidden;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.3s;
     display: flex;
     flex-direction: column;
     will-change: transform;
@@ -576,6 +577,7 @@ body {
 
 .stat-side-panel.open {
     transform: translateX(0);
+    visibility: visible;
 }
 
 /* Panel content wrapper */
@@ -846,9 +848,11 @@ body {
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
     z-index: 9999;
     max-height: 70vh;
+    max-height: 70dvh; /* dvh excludes mobile browser chrome; vh is the fallback */
     min-height: 200px;
     transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    visibility: hidden;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.4s;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -857,6 +861,7 @@ body {
 
 .stat-sheet.open {
     transform: translateY(0);
+    visibility: visible;
 }
 
 /* Drag handle for swipe gesture */
@@ -872,7 +877,7 @@ body {
 
 /* Sheet content wrapper */
 .stat-sheet-content {
-    padding: 20px 20px 24px;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
     overflow-y: auto;
     flex: 1;
 }
@@ -1033,6 +1038,7 @@ body {
 @media (max-width: 480px) {
     .stat-sheet {
         max-height: 80vh;
+        max-height: 80dvh;
     }
 
     .stat-sheet-title {
@@ -1044,7 +1050,7 @@ body {
     }
 
     .stat-sheet-content {
-        padding: 16px 16px 20px;
+        padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
     }
 }
 
@@ -1054,4 +1060,28 @@ body {
     text-align: center;
     color: #8b949e;
     font-size: 14px;
+}
+
+/* Locks background scrolling while the bottom sheet or side panel is open.
+   position: fixed rather than overflow: hidden because iOS Safari ignores
+   overflow: hidden on body. */
+body.scroll-locked {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Available to screen readers, not shown on screen */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

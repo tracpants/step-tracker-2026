@@ -20,7 +20,9 @@ export const initHeatmap = (chartData) => {
             x: 'date',
             y: 'value',
         },
-        date: { start: new Date(TRACKING_YEAR, 0, 1) },
+        // Cal-Heatmap resolves the start instant in UTC, so a local-time
+        // Jan 1 lands in the previous December for timezones ahead of UTC
+        date: { start: new Date(Date.UTC(TRACKING_YEAR, 0, 1)) },
         range: 12,
         scale: {
             color: {
