@@ -2,7 +2,7 @@
  * Mobile bottom sheet management module
  */
 
-import { triggerHapticFeedback } from './utils.js';
+import { triggerHapticFeedback, trapFocus, lockBodyScroll, unlockBodyScroll } from './utils.js';
 import { generatePanelContent, renderPanelContent } from './statPanelContent.js';
 
 let currentSelectedStat = null;
@@ -29,6 +29,7 @@ export const openStatSheet = (statType, data) => {
     currentSelectedStat = statType;
     isSheetOpen = true;
     lastFocusedElement = document.activeElement;
+    lockBodyScroll('stat-sheet');
 
     // Reset any transforms from previous swipe gestures
     sheet.style.transform = '';
@@ -69,6 +70,7 @@ export const openStatSheet = (statType, data) => {
  */
 export const closeStatSheet = () => {
     isSheetOpen = false;
+    unlockBodyScroll('stat-sheet');
     sheetBackdrop.classList.remove('open');
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
@@ -260,8 +262,12 @@ export const initBottomSheetListeners = () => {
 
     // Keyboard navigation support
     document.addEventListener('keydown', (evt) => {
-        if (isSheetOpen && evt.key === 'Escape') {
+        if (!isSheetOpen) return;
+
+        if (evt.key === 'Escape') {
             closeStatSheet();
+        } else {
+            trapFocus(sheet, evt);
         }
     });
 
@@ -272,7 +278,10 @@ export const initBottomSheetListeners = () => {
 
     // Focus management - focus close button when sheet opens, restore focus
     // to whatever was focused before the sheet opened when it closes
-    sheet.addEventListener('transitionend', () => {
+    sheet.addEventListener('transitionend', (evt) => {
+        // transitionend bubbles, so ignore transitions on the sheet's contents
+        if (evt.target !== sheet || evt.propertyName !== 'transform') return;
+
         if (isSheetOpen) {
             if (sheetCloseButton) {
                 sheetCloseButton.focus();

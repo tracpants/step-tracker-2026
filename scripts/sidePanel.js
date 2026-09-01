@@ -3,10 +3,13 @@
  */
 
 import { generatePanelContent, renderPanelContent } from './statPanelContent.js';
-import { isMobileDevice } from './utils.js';
+import { isMobileDevice, trapFocus, lockBodyScroll, unlockBodyScroll } from './utils.js';
 
 let currentSelectedStat = null;
 let isPanelOpen = false;
+
+// Element focused before the panel opened, restored on close
+let lastFocusedElement = null;
 
 const panel = document.getElementById('stat-side-panel');
 const backdrop = document.getElementById('stat-side-panel-backdrop');
@@ -25,6 +28,8 @@ export const shouldUseDesktopSidePanel = () => !isMobileDevice();
 export const openStatSidePanel = (statType, data) => {
     currentSelectedStat = statType;
     isPanelOpen = true;
+    lastFocusedElement = document.activeElement;
+    lockBodyScroll('stat-side-panel');
 
     // Populate the panel content
     populateStatSidePanel(statType, data);
@@ -56,6 +61,7 @@ export const openStatSidePanel = (statType, data) => {
  */
 export const closeStatSidePanel = () => {
     isPanelOpen = false;
+    unlockBodyScroll('stat-side-panel');
     backdrop.classList.remove('open');
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
@@ -115,10 +121,31 @@ export const initSidePanelListeners = () => {
         closeButton.addEventListener('click', closeStatSidePanel);
     }
 
-    // ESC key to close
+    // ESC to close, Tab kept inside the panel while it is open
     document.addEventListener('keydown', (evt) => {
-        if (evt.key === 'Escape' && isPanelOpen) {
+        if (!isPanelOpen) return;
+
+        if (evt.key === 'Escape') {
             closeStatSidePanel();
+        } else {
+            trapFocus(panel, evt);
         }
     });
+
+    // Focus management - focus the close button when the panel opens, restore
+    // focus to whatever was focused before it opened when it closes
+    if (panel) {
+        panel.addEventListener('transitionend', (evt) => {
+            // transitionend bubbles, so ignore transitions on the panel's contents
+            if (evt.target !== panel || evt.propertyName !== 'transform') return;
+
+            if (isPanelOpen) {
+                if (closeButton) {
+                    closeButton.focus();
+                }
+            } else if (lastFocusedElement && lastFocusedElement.focus) {
+                lastFocusedElement.focus();
+            }
+        });
+    }
 };
