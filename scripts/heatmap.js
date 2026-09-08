@@ -104,3 +104,111 @@ export const setupHeatmapScrollIndicators = () => {
     // Initial check
     setTimeout(updateScrollIndicators, 100);
 };
+
+/**
+ * Format a Date as YYYY-MM-DD in the viewer's local time.
+ * Cal-Heatmap renders cells at viewer-local midnight, so cell timestamps have
+ * to be read back as local dates (same reasoning as tooltips.js).
+ * @param {Date} date - Date to format
+ * @returns {string} Local date string
+ */
+const toLocalDateStr = (date) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/**
+ * Today's date in the tracker's configured timezone, as YYYY-MM-DD.
+ * The tracker reports Garmin days in that timezone, so that is the day to
+ * bring into view, not the viewer's own calendar day.
+ * @param {Date} now - Current instant
+ * @returns {string} Date string in the configured timezone
+ */
+const todayInTrackingTz = (now) => {
+    const timeZone = window.CONFIG?.TIMEZONE;
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now);
+    const part = (type) => parts.find((p) => p.type === type)?.value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+/**
+ * Find the heatmap cell for a given date.
+ * Cal-Heatmap is built on D3, which stores each cell's datum on the element as
+ * `__data__` (what `d3.select(cell).datum()` reads); `t` is the cell timestamp.
+ * @param {string} dateStr - Target date as YYYY-MM-DD
+ * @returns {Element|null} The matching cell, or null
+ */
+const findCellForDate = (dateStr) => {
+    const cells = document.querySelectorAll('#cal-heatmap rect.ch-subdomain-bg');
+
+    for (const cell of cells) {
+        const timestamp = cell.__data__?.t;
+        if (!timestamp) continue;
+        if (toLocalDateStr(new Date(timestamp)) === dateStr) return cell;
+    }
+
+    return null;
+};
+
+/**
+ * Where today sits across the visible width, as a fraction. Past the middle,
+ * so the view leans on the days already walked rather than empty future cells.
+ */
+const TODAY_VIEWPORT_POSITION = 0.7;
+
+/**
+ * Scroll the heatmap horizontally to bring a target element into view
+ * @param {Element} wrapper - The scrolling container
+ * @param {Element} target - Element to bring into view
+ */
+const scrollTargetIntoView = (wrapper, target) => {
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    // Distance from the start of the scrollable content to the target
+    const targetOffset = wrapper.scrollLeft + (targetRect.left - wrapperRect.left);
+    const desired = targetOffset - (wrapper.clientWidth - targetRect.width) * TODAY_VIEWPORT_POSITION;
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+
+    wrapper.scrollLeft = Math.max(0, Math.min(desired, maxScroll));
+};
+
+/**
+ * Bring today into view on load.
+ *
+ * The heatmap always starts at January, so on narrow screens the current day
+ * sits off the right edge and has to be scrolled to by hand. Only scrolls when
+ * the year overflows its container, which makes this a no-op on desktop.
+ *
+ * @param {Date} [now] - Current instant, injectable for tests
+ * @returns {boolean} True if the heatmap was scrolled
+ */
+export const scrollHeatmapToToday = (now = new Date()) => {
+    const wrapper = document.querySelector('.heatmap-wrapper');
+    if (!wrapper) return false;
+
+    // Nothing to bring into view when the whole year already fits
+    if (wrapper.scrollWidth <= wrapper.clientWidth) return false;
+
+    const todayStr = todayInTrackingTz(now);
+    const [year, month] = todayStr.split('-').map(Number);
+
+    // Outside the tracked year there is no "today" to scroll to
+    if (year !== TRACKING_YEAR) return false;
+
+    // Fall back to the month label when the cell carries no datum, so a
+    // Cal-Heatmap internals change degrades to the right month instead of
+    // leaving the view stuck on January
+    const target =
+        findCellForDate(todayStr) ||
+        document.querySelectorAll('#cal-heatmap .ch-domain-text')[month - 1];
+    if (!target) return false;
+
+    scrollTargetIntoView(wrapper, target);
+    return true;
+};

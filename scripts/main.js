@@ -4,7 +4,7 @@
 
 import { loadStepData, processChartData } from './dataLoader.js';
 import { calculateStats, calculateWeeklyProgress, formatLastUpdated } from './stats.js';
-import { initHeatmap, setupHeatmapTracking, setupHeatmapScrollIndicators } from './heatmap.js';
+import { initHeatmap, setupHeatmapTracking, setupHeatmapScrollIndicators, scrollHeatmapToToday } from './heatmap.js';
 import { setupCellTooltips, setupMonthTooltips } from './tooltips.js';
 import { shouldUseDesktopSidePanel, openStatSidePanel, initSidePanelListeners } from './sidePanel.js';
 import { openStatSheet, initBottomSheetListeners } from './bottomSheet.js';
@@ -242,6 +242,10 @@ const init = async () => {
         setupMonthTooltips(stats.monthlyTotals);
         setupStatCardInteractions(data, stats, weekly);
         setupHeatmapScrollIndicators();
+
+        // Land on today rather than January; indicators are already listening so
+        // the programmatic scroll updates the edge fades too
+        scrollHeatmapToToday();
 
     } catch (error) {
         console.error('Error initializing app:', error);
