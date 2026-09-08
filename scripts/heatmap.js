@@ -81,22 +81,18 @@ export const setupHeatmapScrollIndicators = () => {
     const wrapper = document.querySelector('.heatmap-wrapper');
     if (!wrapper) return;
 
+    // The fades live on the static frame around the scroller so they stay at
+    // the visible edges while the heatmap scrolls underneath them
+    const frame = wrapper.closest('.heatmap-scroll-frame') || wrapper;
+
     const updateScrollIndicators = () => {
         const { scrollLeft, scrollWidth, clientWidth } = wrapper;
-        
+
         // Show left indicator if we can scroll left
-        if (scrollLeft > 10) {
-            wrapper.classList.add('scrollable-left');
-        } else {
-            wrapper.classList.remove('scrollable-left');
-        }
-        
+        frame.classList.toggle('scrollable-left', scrollLeft > 10);
+
         // Show right indicator if we can scroll right
-        if (scrollLeft + clientWidth < scrollWidth - 10) {
-            wrapper.classList.add('scrollable-right');
-        } else {
-            wrapper.classList.remove('scrollable-right');
-        }
+        frame.classList.toggle('scrollable-right', scrollLeft + clientWidth < scrollWidth - 10);
     };
 
     // Update indicators on scroll
