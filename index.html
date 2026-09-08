@@ -19,16 +19,18 @@
     <meta property="og:type" content="website">
 
     <title>Step Tracker 2026</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/utc.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/timezone.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isoWeek.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/cal-heatmap.css">
-    <script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.4/dist/plugins/CalendarLabel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-    <script src="https://unpkg.com/lucide@0.460.0"></script>
+    <!-- Self-hosted; see vendor/README.md. Served from this origin so a CDN
+         outage or a network that blocks one cannot take the page down. -->
+    <script src="./vendor/d3.v7.min.js"></script>
+    <script src="./vendor/dayjs/dayjs.min.js"></script>
+    <script src="./vendor/dayjs/plugin/utc.js"></script>
+    <script src="./vendor/dayjs/plugin/timezone.js"></script>
+    <script src="./vendor/dayjs/plugin/isoWeek.js"></script>
+    <script src="./vendor/cal-heatmap/cal-heatmap.min.js"></script>
+    <link rel="stylesheet" href="./vendor/cal-heatmap/cal-heatmap.css">
+    <script src="./vendor/cal-heatmap/plugins/CalendarLabel.min.js"></script>
+    <script src="./vendor/confetti.browser.min.js"></script>
+    <script src="./vendor/lucide.min.js"></script>
     <script>
         // Skip GoatCounter tracking for development environments
         if (window.location.hostname === 'localhost' ||
@@ -41,8 +43,8 @@
     </script>
     <script data-goatcounter="https://normal-past.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
-    <script src="./config.js?v=1788895036"></script>
-    <link rel="stylesheet" href="./styles/main.css?v=1788895036">
+    <script src="./config.js?v=1788896853"></script>
+    <link rel="stylesheet" href="./styles/main.css?v=1788896853">
 </head>
 <body>
     <div class="container">
@@ -167,6 +169,6 @@
         </div>
     </div>
 
-    <script type="module" src="./scripts/main.js?v=1788895036"></script>
+    <script type="module" src="./scripts/main.js?v=1788896853"></script>
 </body>
 </html>

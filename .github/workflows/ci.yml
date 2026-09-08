@@ -81,6 +81,7 @@ jobs:
           mkdir _site
           cp index.html embed.html config.js favicon.svg robots.txt CNAME _site/
           cp -r styles _site/styles
+          cp -r vendor _site/vendor
           mkdir _site/scripts
           cp scripts/*.js _site/scripts/
 
@@ -92,9 +93,14 @@ jobs:
           if find _site -name '*.test.js' -o -name '__tests__' | grep -q .; then
             echo "Test files leaked into _site" >&2; exit 1
           fi
-          # Catch syntax errors before they hit production
-          for f in _site/scripts/*.js _site/config.js; do node --check "$f"; done
+          # Catch syntax errors - and truncated vendor copies - before production
+          find _site -name '*.js' -print0 | xargs -0 -n1 node --check
           find _site -type f | sort
+
+      - name: Verify no unresolved or third-party page assets
+        # The site went dark once because a CDN-hosted library did not load, so
+        # every script and stylesheet must resolve inside _site.
+        run: node .github/scripts/check-site-assets.mjs _site
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

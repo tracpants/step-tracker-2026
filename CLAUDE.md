@@ -31,6 +31,8 @@ This is a step tracking application that displays Garmin Connect data as a GitHu
 
 4. **Configuration**: `config.js` sets timezone, tracking year (`YEAR`), and R2 data URL.
 
+5. **Vendored Libraries**: d3, dayjs, Cal-Heatmap, canvas-confetti and lucide are served from `/vendor/`, not a CDN. See `vendor/README.md` for versions and how to refresh them. Adding a third-party `<script>`/`<link>` to a page fails CI.
+
 ## Common Development Commands
 
 ```bash
@@ -70,6 +72,8 @@ python3 -m http.server 3000
 **Timezone Handling**: All date processing respects the configured timezone (`Australia/Sydney` by default) using dayjs with timezone plugins.
 
 **R2 Integration**: The app can work with or without R2. If R2 is not configured, it gracefully falls back. The data format includes both `data` (daily steps) and `metadata` (last updated timestamps).
+
+**No Silent Loading States**: `init()` in `main.js` must always resolve the loading skeleton — into the heatmap or into a `.load-error` message. Never reference a third-party global at module scope: a throw during module evaluation aborts before `init()` is defined, and the page is left on its skeleton forever with nothing to explain it. That is what an outage looked like from a visitor's side. Library checks belong in `initLibraries()`, inside the try/catch.
 
 ## Environment Setup
 
