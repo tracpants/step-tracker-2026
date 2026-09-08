@@ -10,10 +10,25 @@ import { shouldUseDesktopSidePanel, openStatSidePanel, initSidePanelListeners } 
 import { openStatSheet, initBottomSheetListeners } from './bottomSheet.js';
 import { fmt, TRACKING_YEAR } from './utils.js';
 
-// Initialize dayjs plugins
-dayjs.extend(dayjs_plugin_utc);
-dayjs.extend(dayjs_plugin_timezone);
-dayjs.extend(dayjs_plugin_isoWeek);
+/**
+ * Third-party globals the app cannot render without, and the dayjs plugins it
+ * needs registered. Both run inside init()'s try/catch rather than at module
+ * scope: a throw out here would abort module evaluation before init() is even
+ * defined, leaving the loading skeleton up forever with nothing to explain it.
+ * @throws {Error} If a required library failed to load
+ */
+const initLibraries = () => {
+    const missing = ['d3', 'dayjs', 'CalHeatmap'].filter((name) => !window[name]);
+    if (missing.length) {
+        const error = new Error(`Required libraries failed to load: ${missing.join(', ')}`);
+        error.name = 'LibraryLoadError';
+        throw error;
+    }
+
+    dayjs.extend(dayjs_plugin_utc);
+    dayjs.extend(dayjs_plugin_timezone);
+    dayjs.extend(dayjs_plugin_isoWeek);
+};
 
 /**
  * Update DOM elements with calculated statistics
@@ -202,12 +217,18 @@ const setupStatCardInteractions = (data, stats, weekly) => {
 };
 
 /**
- * Show a user-facing error in place of the loading skeleton
+ * Show a user-facing error in place of the loading skeleton.
+ * Whatever goes wrong, the skeleton must not be left spinning with no
+ * explanation - an unexplained loading state reads as a dead site.
+ * @param {string} message - What to tell the visitor
  */
-const showLoadError = () => {
+const showLoadError = (message) => {
     const skeleton = document.getElementById('loading-skeleton');
     if (skeleton) {
-        skeleton.innerHTML = '<div class="load-error">Couldn\'t load step data. Please try again later.</div>';
+        const el = document.createElement('div');
+        el.className = 'load-error';
+        el.textContent = message;
+        skeleton.replaceChildren(el);
     }
 };
 
@@ -216,6 +237,8 @@ const showLoadError = () => {
  */
 const init = async () => {
     try {
+        initLibraries();
+
         // Initialize event listeners
         initSidePanelListeners();
         initBottomSheetListeners();
@@ -249,7 +272,11 @@ const init = async () => {
 
     } catch (error) {
         console.error('Error initializing app:', error);
-        showLoadError();
+        showLoadError(
+            error?.name === 'LibraryLoadError'
+                ? 'Couldn\'t load the page\'s resources. Please refresh to try again.'
+                : 'Couldn\'t load step data. Please try again later.'
+        );
     }
 };
 
