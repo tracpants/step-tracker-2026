@@ -405,20 +405,27 @@ body {
    RESPONSIVE MOBILE / PORTRAIT STYLES
    ======================================================================== */
 
-/* Wrapper for horizontal scroll on mobile */
-.heatmap-wrapper {
-    position: relative; /* Establishes positioning context for absolutely positioned shadows */
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+/* Wrapper for horizontal scroll on mobile, inside a static frame. The fade
+   overlays are anchored to that frame so they stay at the visible edges
+   instead of scrolling away with the heatmap content - a pseudo-element on
+   the scroller itself is positioned against the scrolled content, so it
+   drifts inland across the grid. */
+.heatmap-scroll-frame {
+    position: relative; /* Establishes positioning context for the fade overlays */
     margin: 17px 0;
 }
 
+.heatmap-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+}
+
 /* Scroll indicators for mobile heatmap - positioned at viewport edges */
-.heatmap-wrapper::before,
-.heatmap-wrapper::after {
+.heatmap-scroll-frame::before,
+.heatmap-scroll-frame::after {
     content: '';
-    position: absolute; /* Absolute positioning keeps shadows at viewport edges */
+    position: absolute;
     top: 0;
     bottom: 0;
     width: 20px;
@@ -428,21 +435,21 @@ body {
     transition: opacity 0.3s ease;
 }
 
-.heatmap-wrapper::before {
+.heatmap-scroll-frame::before {
     left: 0; /* Anchored to left viewport edge */
     background: linear-gradient(to right, #0d1117 0%, transparent 100%);
 }
 
-.heatmap-wrapper::after {
+.heatmap-scroll-frame::after {
     right: 0; /* Anchored to right viewport edge */
     background: linear-gradient(to left, #0d1117 0%, transparent 100%);
 }
 
-.heatmap-wrapper.scrollable-left::before {
+.heatmap-scroll-frame.scrollable-left::before {
     opacity: 1;
 }
 
-.heatmap-wrapper.scrollable-right::after {
+.heatmap-scroll-frame.scrollable-right::after {
     opacity: 1;
 }
 
@@ -494,9 +501,13 @@ body {
     }
 
     /* Ensure heatmap container scrolls horizontally */
+    .heatmap-scroll-frame {
+        margin: 17px 0; /* remove negative margin that extends beyond viewport */
+    }
+
     .heatmap-wrapper {
         width: 100%;
-        margin: 17px 0; /* remove negative margin that extends beyond viewport */
+        margin: 0;
         padding: 0;
     }
 
